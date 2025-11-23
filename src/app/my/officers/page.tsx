@@ -66,28 +66,29 @@ export default function MyOfficersPage() {
       setLoading(true);
 
       // 武将一覧
-      const { data: officersData, error: officersError } = await supabase
-        .from("officers")
-        .select(
-          `
-          id,
-          name,
-          rarity,
-          cost_raw,
-          faction,
-          house,
-          inherent_skill_name,
-          inherent_skill_type,
-          inherit_skill_name,
-          unique_trait,
-          trait凸1,
-          trait凸3,
-          trait凸5
-        `
-        )
-        .order("rarity", { ascending: false })
-        .order("cost_raw", { ascending: true })
-        .order("name", { ascending: true });
+const { data: officersData, error: officersError } = await supabase
+  .from("officers")
+  // 型推論を any にして ParserError を回避
+  .select<any>(
+    `
+    id,
+    name,
+    rarity,
+    cost_raw,
+    faction,
+    house,
+    inherent_skill_name,
+    inherent_skill_type,
+    inherit_skill_name,
+    unique_trait,
+    trait凸1,
+    trait凸3,
+    trait凸5
+  `
+  )
+  .order("rarity", { ascending: false })
+  .order("cost_raw", { ascending: true })
+  .order("name", { ascending: true });
 
       if (officersError) {
         alert("officers取得エラー: " + officersError.message);
