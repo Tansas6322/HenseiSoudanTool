@@ -7,15 +7,32 @@ import { useUserKey } from "@/hooks/useUserKey";
 type Officer = {
   id: number;
   name: string;
-  rarity: number;          // ★
-  cost_raw: number | null;     // コスト
-  faction: string | null;  // 勢力
-  house: string | null;   // 家門
+  rarity: number; // ★
+  cost_raw: number | null; // コスト
+  faction: string | null; // 勢力
+  house: string | null; // 家門
+
+  // ▼ officersテーブルのカラム（スクショに合わせている）
+  inherent_skill_name: string | null; // 固有戦法名
+  inherent_skill_type: string | null; // 固有戦法の種別（指揮/能動/受動…）
+  inherit_skill_name: string | null; // 伝承戦法名
+  unique_trait: string | null; // 固有特性
+  trait凸1: string | null;
+  trait凸3: string | null;
+  trait凸5: string | null;
 };
 
 type UserOfficer = {
   officer_id: number;
   count: number | null;
+};
+
+// skillsテーブルから取ってくる内容
+type SkillSummary = {
+  name: string;
+  // ← skillsテーブルの「説明」カラム名に合わせて変更してね
+  // 例: "description" や "detail" など
+  description: string | null;
 };
 
 export default function MyOfficersPage() {
@@ -25,11 +42,18 @@ export default function MyOfficersPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
+  // ▼ 詳細モーダル関連
+  const [detailOfficer, setDetailOfficer] = useState<Officer | null>(null);
+  const [detailSkills, setDetailSkills] = useState<
+    Record<string, SkillSummary>
+  >({});
+  const [detailSkillsLoading, setDetailSkillsLoading] = useState(false);
+
   // フィルター用の state
   const [search, setSearch] = useState("");
-  const [filterRarity, setFilterRarity] = useState<string>("");  // ★
-  const [filtercost_raw, setFiltercost_raw] = useState<string>("");      // コスト
-  const [filterFaction, setFilterFaction] = useState<string>("");// 勢力
+  const [filterRarity, setFilterRarity] = useState<string>(""); // ★
+  const [filterCost, setFilterCost] = useState<string>(""); // コスト
+  const [filterFaction, setFilterFaction] = useState<string>(""); // 勢力
 
   useEffect(() => {
     if (!ready) return;
@@ -44,7 +68,23 @@ export default function MyOfficersPage() {
       // 武将一覧
       const { data: officersData, error: officersError } = await supabase
         .from("officers")
-        .select("id, name, rarity, cost_raw, faction, house")
+        .select(
+          `
+          id,
+          name,
+          rarity,
+          cost_raw,
+          faction,
+          house,
+          inherent_skill_name,
+          inherent_skill_type,
+          inherit_skill_name,
+          unique_trait,
+          trait凸1,
+          trait凸3,
+          trait凸5
+        `
+        )
         .order("rarity", { ascending: false })
         .order("cost_raw", { ascending: true })
         .order("name", { ascending: true });
@@ -120,6 +160,49 @@ export default function MyOfficersPage() {
     setSaving(false);
   };
 
+  // ▼ 詳細モーダルを開く時に戦法説明も読み込み
+  const openDetail = (officer: Officer) => {
+    setDetailOfficer(officer);
+    setDetailSkills({});
+    if (!officer.inherent_skill_name && !officer.inherit_skill_name) {
+      return;
+    }
+
+    const names = [
+      officer.inherent_skill_name,
+      officer.inherit_skill_name,
+    ].filter((v): v is string => !!v);
+
+    if (names.length === 0) return;
+
+    setDetailSkillsLoading(true);
+
+    supabase
+      .from("skills")
+      // ↓ skillsテーブルのカラム名に合わせて変更してね
+      .select("name, description")
+      .in("name", names)
+      .then(({ data, error }) => {
+        if (error) {
+          console.error("skills取得エラー", error);
+          setDetailSkills({});
+        } else {
+          const map: Record<string, SkillSummary> = {};
+          (data as SkillSummary[] | null)?.forEach((s) => {
+            map[s.name] = s;
+          });
+          setDetailSkills(map);
+        }
+      })
+      .finally(() => setDetailSkillsLoading(false));
+  };
+
+  const closeDetail = () => {
+    setDetailOfficer(null);
+    setDetailSkills({});
+    setDetailSkillsLoading(false);
+  };
+
   // 表示分岐
   if (!ready) {
     return <div className="p-4">ユーザー情報を読み込み中...</div>;
@@ -146,7 +229,7 @@ export default function MyOfficersPage() {
     new Set(officers.map((o) => o.rarity).filter((v) => v != null))
   ).sort((a, b) => b - a); // 高い★から
 
-  const cost_rawOptions = Array.from(
+  const costOptions = Array.from(
     new Set(officers.map((o) => o.cost_raw).filter((v): v is number => v != null))
   ).sort((a, b) => a - b);
 
@@ -156,16 +239,28 @@ export default function MyOfficersPage() {
 
   // 検索 & フィルター適用
   const filteredOfficers = officers.filter((o) => {
-    const count = countMap[o.id] ?? 0;
-
     if (search && !o.name.includes(search)) return false;
     if (filterRarity && o.rarity !== Number(filterRarity)) return false;
-    if (filtercost_raw && o.cost_raw !== Number(filtercost_raw)) return false;
+    if (filterCost && o.cost_raw !== Number(filterCost)) return false;
     if (filterFaction && o.faction !== filterFaction) return false;
-
-    // 例えば「0枚の武将も見たい」想定なので、count ではフィルタしない
     return true;
   });
+
+  // 特性をまとめて1本の文字列にするヘルパー
+  const buildTraitsText = (officer: Officer) => {
+    const list = [
+      officer.trait凸1,
+      officer.trait凸3,
+      officer.trait凸5,
+    ].filter((v): v is string => !!v);
+    return list.length ? list.join(" / ") : "-";
+  };
+
+  const getSkillDescription = (name: string | null) => {
+    if (!name) return null;
+    const skill = detailSkills[name];
+    return skill?.description ?? null;
+  };
 
   return (
     <main className="p-4">
@@ -185,7 +280,10 @@ export default function MyOfficersPage() {
       </div>
 
       {/* 共通メニュー */}
-      <div className="mb-4 flex gap-4 text-sm">
+      <div className="mb-4Kana flex gap-4 text-sm">
+        <a href="/" className="text-blue-600 underline">
+          ホーム
+        </a>
         <a href="/my/officers" className="text-blue-600 underline">
           武将登録
         </a>
@@ -237,11 +335,11 @@ export default function MyOfficersPage() {
           <span>コスト:</span>
           <select
             className="border rounded px-2 py-1"
-            value={filtercost_raw}
-            onChange={(e) => setFiltercost_raw(e.target.value)}
+            value={filterCost}
+            onChange={(e) => setFilterCost(e.target.value)}
           >
             <option value="">全部</option>
-            {cost_rawOptions.map((c) => (
+            {costOptions.map((c) => (
               <option key={c} value={c}>
                 {c}
               </option>
@@ -272,6 +370,8 @@ export default function MyOfficersPage() {
           const count = countMap[o.id] ?? 0;
           const owned = count > 0;
 
+          const officerImageSrc = `/officers/${o.id}.png`;
+
           return (
             <div
               key={o.id}
@@ -279,10 +379,27 @@ export default function MyOfficersPage() {
                 owned ? "bg-blue-100 border-blue-400" : "bg-white"
               }`}
             >
-              <div className="font-bold">{o.name}</div>
-              <div>★{o.rarity}</div>
-              <div>コスト: {o.cost_raw ?? "-"}</div>
-              <div>{o.faction ?? "-"} / {o.house ?? "-"}</div>
+              <div className="flex gap-2">
+                <img
+                  src={officerImageSrc}
+                  alt={o.name}
+                  width={64}
+                  height={64}
+                  className="rounded object-cover"
+                  onError={(e) => {
+                    (e.currentTarget as HTMLImageElement).src = "/no-image.png";
+                  }}
+                />
+
+                <div className="flex-1">
+                  <div className="font-bold">{o.name}</div>
+                  <div>★{o.rarity}</div>
+                  <div>コスト: {o.cost_raw ?? "-"}</div>
+                  <div>
+                    {o.faction ?? "-"} / {o.house ?? "-"}
+                  </div>
+                </div>
+              </div>
 
               <div className="mt-2 flex items-center justify-between">
                 <span className="text-sm">所持枚数</span>
@@ -304,10 +421,98 @@ export default function MyOfficersPage() {
                   </button>
                 </div>
               </div>
+
+              <div className="mt-2 flex justify-end">
+                <button
+                  type="button"
+                  className="text-xs px-2 py-1 border rounded bg-white/70 hover:bg-blue-50"
+                  onClick={() => openDetail(o)}
+                >
+                  詳細
+                </button>
+              </div>
             </div>
           );
         })}
       </div>
+
+      {/* 詳細モーダル（PC/スマホ共通） */}
+      {detailOfficer && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+          onClick={closeDetail}
+        >
+          <div
+            className="bg-white rounded-lg shadow-lg p-4 w-[90vw] max-w-md max-h-[80vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="text-lg font-bold mb-2">{detailOfficer.name}</h2>
+
+            <div className="text-sm space-y-1 mb-3">
+              <div>★{detailOfficer.rarity}</div>
+              <div>
+                コスト: {detailOfficer.cost_raw ?? "-"} /{" "}
+                {detailOfficer.faction ?? "-"} / {detailOfficer.house ?? "-"}
+              </div>
+            </div>
+
+            {detailSkillsLoading && (
+              <div className="text-xs text-gray-500 mb-2">
+                戦法の説明を読み込み中…
+              </div>
+            )}
+
+            <div className="text-sm space-y-3">
+              <div>
+                <div>
+                  <span className="font-semibold">固有戦法:</span>{" "}
+                  {detailOfficer.inherent_skill_name ?? "-"}{" "}
+                  {detailOfficer.inherent_skill_type &&
+                    `（${detailOfficer.inherent_skill_type}）`}
+                </div>
+                {detailOfficer.inherent_skill_name && (
+                  <p className="mt-1 text-xs text-gray-700 whitespace-pre-wrap">
+                    {getSkillDescription(detailOfficer.inherent_skill_name) ??
+                      "（説明未登録）"}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <div>
+                  <span className="font-semibold">伝承戦法:</span>{" "}
+                  {detailOfficer.inherit_skill_name ?? "-"}
+                </div>
+                {detailOfficer.inherit_skill_name && (
+                  <p className="mt-1 text-xs text-gray-700 whitespace-pre-wrap">
+                    {getSkillDescription(detailOfficer.inherit_skill_name) ??
+                      "（説明未登録）"}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <span className="font-semibold">固有特性:</span>{" "}
+                {detailOfficer.unique_trait ?? "-"}
+              </div>
+              <div>
+                <span className="font-semibold">特性:</span>{" "}
+                {buildTraitsText(detailOfficer)}
+              </div>
+            </div>
+
+            <div className="mt-4 text-right">
+              <button
+                type="button"
+                className="px-3 py-1 text-sm border rounded bg-gray-100 hover:bg-gray-200"
+                onClick={closeDetail}
+              >
+                閉じる
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

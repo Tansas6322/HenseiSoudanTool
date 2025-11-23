@@ -1,0 +1,106 @@
+開発モード切替　cmdで
+npm run dev 
+
+使用ツール　
+DB　supabase
+https://supabase.com/dashboard/project/knegullkryobpqwkhfqy/sql/3e3d352d-e199-43e9-ac11-28a97351ec99?schema=public
+src管理　github
+https://github.com/Tansas6322/HenseiSoudanTool
+デプロイ　Vercel
+
+実行環境　node.js　next.js　git
+
+
+
+
+
+
+全体像
+
+ソースコードを GitHub にアップ
+
+Vercel と GitHub を連携してデプロイ
+
+Supabase の URL と Key を Vercel にも設定
+
+発行された URL を連盟メンバーに配るだけ
+
+これで、みんなブラウザからアクセスして
+/ login → /my/officers → /my/skills → /formation
+がそのまま使えます。
+
+1. GitHub にコードを上げる
+
+プロジェクトフォルダ（hensei-soudan-app）で：
+
+git init
+git add .
+git commit -m "first commit"
+
+
+GitHub で新しい空のリポジトリを作成（例: HenseiSoudanTool）
+
+GitHub が表示してくれるコマンドを実行：
+
+git branch -M main
+git remote add origin https://github.com/＜あなたのID＞/HenseiSoudanTool.git
+git push -u origin main
+
+
+これでコードが GitHub に乗ります。
+
+2. Vercel で Next.js アプリをデプロイ
+
+Vercel
+ に GitHub アカウントでログイン
+
+「Add New… → Project」からさっきのリポジトリを選ぶ
+
+Framework は自動で Next.js になるはずなのでそのまま
+
+Environment Variables にローカルと同じものを設定：
+
+NEXT_PUBLIC_SUPABASE_URL
+
+NEXT_PUBLIC_SUPABASE_ANON_KEY
+（Supabase の Project Settings → API で見つけた値と同じ）
+
+「Deploy」を押す
+
+数十秒で
+https://hensei-soudan-app-xxxxx.vercel.app
+みたいな URL が出てくるので、それがみんなが使うアドレスです。
+
+3. 挙動の確認
+
+デプロイが終わったら、その URL で次を確認：
+
+/login を開けるか
+
+ユーザー名を入れて /my/officers に進めるか
+
+武将・戦法の保存がエラーにならないか
+
+ちゃんと Supabase にデータが入っているか
+
+問題なければ、その URL を連盟の Discord / チャットで共有すれば
+メンバー全員が同じ DB を使って登録＆編成できます ✨
+
+4. メンバーに使ってもらうときのコツ
+
+一人一意になる「ユーザー名」を決めてもらう
+（ゲーム内のプレイヤー名など）
+
+/login から自分のユーザー名を入れてもらう
+→ 以降、その名前で武将・戦法・編成が紐づく
+
+回答係（あなた）は、同じユーザー名でログインすれば
+その人の所持状況・編成を見ながら相談できる
+
+セキュリティざっくり補足
+
+今使っているのは Supabase の 公開用(anon)キー なので、
+ブラウザに埋め込んでも問題ない想定のキーです
+
+ただし 重要な情報（パスワードや個人情報）はテーブルに置かない のが吉
+（このツールはゲームデータだけなので OK）

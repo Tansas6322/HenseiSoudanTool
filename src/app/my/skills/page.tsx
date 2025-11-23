@@ -10,6 +10,10 @@ type Skill = {
   category: string | null;
   trigger_rate: number | null;
   owner_name: string | null; // 固有戦法判定用
+  // ▼ 詳細表示用
+  description: string | null;
+  inherit1_name: string | null;
+  inherit2_name: string | null;
 };
 
 type UserSkill = {
@@ -26,6 +30,9 @@ export default function MySkillsPage() {
   const [filterCategory, setFilterCategory] = useState<string>("");
   const [search, setSearch] = useState("");
 
+  // 詳細モーダル用
+  const [detailSkill, setDetailSkill] = useState<Skill | null>(null);
+
   useEffect(() => {
     if (!ready) return;
     if (!userKey) {
@@ -39,7 +46,18 @@ export default function MySkillsPage() {
       // skills 読み込み（owner_name != null = 固有戦法 を除外）
       const { data: skillsData, error: skillsError } = await supabase
         .from("skills")
-        .select("id, name, category, trigger_rate, owner_name")
+        .select(
+          `
+          id,
+          name,
+          category,
+          trigger_rate,
+          owner_name,
+          description,
+          inherit1_name,
+          inherit2_name
+        `
+        )
         .is("owner_name", null)
         .order("name", { ascending: true });
 
@@ -129,6 +147,8 @@ export default function MySkillsPage() {
     return true;
   });
 
+  const closeDetail = () => setDetailSkill(null);
+
   return (
     <main className="p-4">
       <h1 className="text-xl font-bold mb-2">所持戦法登録</h1>
@@ -148,6 +168,9 @@ export default function MySkillsPage() {
 
       {/* 共通メニュー */}
       <div className="mb-4 flex gap-4 text-sm">
+        <a href="/" className="text-blue-600 underline">
+          ホーム
+        </a>
         <a href="/my/officers" className="text-blue-600 underline">
           武将登録
         </a>
@@ -191,29 +214,106 @@ export default function MySkillsPage() {
         />
       </div>
 
-<div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-  {filteredSkills.map((s) => {
-    const owned = !!ownedMap[s.id];
-    return (
-      <div
-        key={s.id}
-        className={`border rounded p-2 cursor-pointer select-none ${
-          owned ? "bg-blue-100 border-blue-400" : "bg-white"
-        }`}
-        onClick={() => toggleOwned(s.id)}
-      >
-        <div className="font-bold">{s.name}</div>
-        <div className="text-sm text-gray-600">
-          {s.category} / 発動率: {s.trigger_rate ?? "-"}%
-        </div>
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+        {filteredSkills.map((s) => {
+          const owned = !!ownedMap[s.id];
+          const skillImageSrc = `/skills/${s.id}.png`;
 
-        <div className="mt-2 text-sm font-semibold">
-          {owned ? "✔ 所持" : "未所持"}
-        </div>
+          return (
+            <div
+              key={s.id}
+              className={`border rounded p-2 cursor-pointer select-none ${
+                owned ? "bg-blue-100 border-blue-400" : "bg-white"
+              }`}
+              onClick={() => toggleOwned(s.id)}
+            >
+              <div className="flex gap-2">
+                <img
+                  src={skillImageSrc}
+                  alt={s.name}
+                  width={48}
+                  height={48}
+                  className="rounded object-cover"
+                  onError={(e) => {
+                    (e.currentTarget as HTMLImageElement).src =
+                      "/no-image.png";
+                  }}
+                />
+                <div>
+                  <div className="font-bold">{s.name}</div>
+                  <div className="text-sm text-gray-600">
+                    {s.category} / 発動率: {s.trigger_rate ?? "-"}%
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-2 flex items-center justify-between text-sm">
+                <span className="font-semibold">
+                  {owned ? "✔ 所持" : "未所持"}
+                </span>
+                <button
+                  type="button"
+                  className="text-xs px-2 py-1 border rounded bg-white/70 hover:bg-blue-50"
+                  onClick={(e) => {
+                    e.stopPropagation(); // 所持切替には反応させない
+                    setDetailSkill(s);
+                  }}
+                >
+                  詳細
+                </button>
+              </div>
+            </div>
+          );
+        })}
       </div>
-    );
-  })}
-</div>
+
+      {/* 戦法詳細モーダル */}
+      {detailSkill && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+          onClick={closeDetail}
+        >
+          <div
+            className="bg-white rounded-lg shadow-lg p-4 w-[90vw] max-w-md max-h-[80vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="text-lg font-bold mb-2">{detailSkill.name}</h2>
+
+            <div className="text-sm space-y-1 mb-3">
+              <div>種類: {detailSkill.category ?? "-"}</div>
+              <div>発動率: {detailSkill.trigger_rate ?? "-"}%</div>
+            </div>
+
+            <div className="text-sm space-y-2 mb-3">
+              <div>
+                <span className="font-semibold">伝承者1:</span>{" "}
+                {detailSkill.inherit1_name ?? "-"}
+              </div>
+              <div>
+                <span className="font-semibold">伝承者2:</span>{" "}
+                {detailSkill.inherit2_name ?? "-"}
+              </div>
+            </div>
+
+            <div className="text-sm">
+              <div className="font-semibold mb-1">説明:</div>
+              <p className="text-xs text-gray-800 whitespace-pre-wrap">
+                {detailSkill.description || "（説明未登録）"}
+              </p>
+            </div>
+
+            <div className="mt-4 text-right">
+              <button
+                type="button"
+                className="px-3 py-1 text-sm border rounded bg-gray-100 hover:bg-gray-200"
+                onClick={closeDetail}
+              >
+                閉じる
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
