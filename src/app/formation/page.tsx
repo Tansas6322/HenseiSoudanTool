@@ -355,7 +355,7 @@ if (upserted && upserted.length > 0) {
 
     if (upserted && upserted.length > 0) {
       currentFormationId = upserted[0].id;
-      setFormationId(currentFormationId);
+      setFormationId(currentFormationId ?? null);
     }
 
     if (!currentFormationId) {
