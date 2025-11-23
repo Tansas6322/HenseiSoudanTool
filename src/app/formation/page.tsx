@@ -66,6 +66,10 @@ export default function FormationPage() {
   // ユーザーが持っている編成ラベル一覧
   const [knownLabels, setKnownLabels] = useState<string[]>(["編成1"]);
 
+  // コメント
+  const [requestNote, setRequestNote] = useState<string>(""); // 依頼者コメント
+  const [answerNote, setAnswerNote] = useState<string>(""); // 回答者コメント
+
   // 戦法詳細用
   const [detailSkill, setDetailSkill] = useState<Skill | null>(null);
 
@@ -222,10 +226,12 @@ export default function FormationPage() {
     setCurrentLabel(label);
     setFormationId(null);
     setSlots(EMPTY_SLOTS);
+    setRequestNote("");
+    setAnswerNote("");
 
     const { data: formations, error: fError } = await supabase
       .from("formations")
-      .select("id, label")
+      .select("id, label, request_note, answer_note")
       .eq("user_key", userKey)
       .eq("label", label)
       .limit(1);
@@ -237,8 +243,10 @@ export default function FormationPage() {
     }
 
     if (formations && formations.length > 0) {
-      const f = formations[0];
+      const f = formations[0] as any;
       setFormationId(f.id);
+      setRequestNote(f.request_note ?? "");
+      setAnswerNote(f.answer_note ?? "");
 
       const { data: slotRows, error: fsError } = await supabase
         .from("formation_slots")
@@ -334,29 +342,28 @@ export default function FormationPage() {
     setSaving(true);
 
     // formations を upsert（現在のラベル）
-    let currentFormationId = formationId ?? undefined;
     const formationRow = {
-      id: currentFormationId,
+      id: formationId ?? undefined,
       user_key: userKey,
       label: currentLabel,
+      request_note: requestNote,
+      answer_note: answerNote,
     };
 
     const { data: upserted, error: upError } = await supabase
       .from("formations")
       .upsert(formationRow)
       .select("id")
-      .limit(1);
+      .single();
 
-if (upserted && upserted.length > 0) {
-  const newId = upserted[0].id ?? null; // number | null に変換
-  currentFormationId = newId;
-  setFormationId(newId);
-}
-
-    if (upserted && upserted.length > 0) {
-      currentFormationId = upserted[0].id;
-      setFormationId(currentFormationId ?? null);
+    if (upError) {
+      alert("formations保存エラー: " + upError.message);
+      setSaving(false);
+      return;
     }
+
+    const currentFormationId = upserted?.id as number | undefined;
+    setFormationId(currentFormationId ?? null);
 
     if (!currentFormationId) {
       alert("formationsのID取得に失敗しました");
@@ -497,6 +504,34 @@ if (upserted && upserted.length > 0) {
         <div className="text-sm text-gray-500">編成読み込み中...</div>
       )}
 
+      {/* コメントエリア */}
+      <div className="grid gap-4 md:grid-cols-2">
+        <div>
+          <label className="block text-sm font-semibold mb-1">
+            依頼者コメント
+          </label>
+          <textarea
+            className="w-full border rounded px-2 py-1 text-sm"
+            rows={3}
+            placeholder="例: 信長を軸にお願いします！"
+            value={requestNote}
+            onChange={(e) => setRequestNote(e.target.value)}
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-semibold mb-1">
+            回答者コメント
+          </label>
+          <textarea
+            className="w-full border rounded px-2 py-1 text-sm"
+            rows={3}
+            placeholder="例: 武田家中心に組んでみました。"
+            value={answerNote}
+            onChange={(e) => setAnswerNote(e.target.value)}
+          />
+        </div>
+      </div>
+
       <p className="text-sm text-gray-600">
         ・所持している武将だけが選択肢に出ます。
         <br />
@@ -636,10 +671,8 @@ if (upserted && upserted.length > 0) {
               )}
               <div>
                 状態:{" "}
-                {[
-                  detailSkill.isOwned ? "所持" : null,
-                  detailSkill.isInheritable ? "伝承可" : null,
-                ]
+                {[detailSkill.isOwned ? "所持" : null,
+                detailSkill.isInheritable ? "伝承可" : null]
                   .filter(Boolean)
                   .join(" / ") || "-"}
               </div>
