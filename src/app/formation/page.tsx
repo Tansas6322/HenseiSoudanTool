@@ -347,11 +347,11 @@ export default function FormationPage() {
       .select("id")
       .limit(1);
 
-    if (upError) {
-      alert("formations保存エラー: " + upError.message);
-      setSaving(false);
-      return;
-    }
+if (upserted && upserted.length > 0) {
+  const newId = upserted[0].id ?? null; // number | null に変換
+  currentFormationId = newId;
+  setFormationId(newId);
+}
 
     if (upserted && upserted.length > 0) {
       currentFormationId = upserted[0].id;
