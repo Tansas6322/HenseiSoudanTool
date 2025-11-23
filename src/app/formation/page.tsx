@@ -67,8 +67,8 @@ export default function FormationPage() {
   const [knownLabels, setKnownLabels] = useState<string[]>(["編成1"]);
 
   // コメント
-  const [requestNote, setRequestNote] = useState<string>(""); // 依頼者コメント
-  const [answerNote, setAnswerNote] = useState<string>(""); // 回答者コメント
+  const [requestcomment, setRequestcomment] = useState<string>(""); // 依頼者コメント
+  const [answercomment, setAnswercomment] = useState<string>(""); // 回答者コメント
 
   // 戦法詳細用
   const [detailSkill, setDetailSkill] = useState<Skill | null>(null);
@@ -226,15 +226,16 @@ export default function FormationPage() {
     setCurrentLabel(label);
     setFormationId(null);
     setSlots(EMPTY_SLOTS);
-    setRequestNote("");
-    setAnswerNote("");
+    setRequestcomment("");
+    setAnswercomment("");
 
-    const { data: formations, error: fError } = await supabase
+    const { data: formation, error: fError } = await supabase
       .from("formations")
-      .select("id, label, request_note, answer_note")
+      .select("id, label, request_comment, answer_comment")
       .eq("user_key", userKey)
       .eq("label", label)
-      .limit(1);
+      // ここを .limit(1) ではなく maybeSingle() にする
+      .maybeSingle();
 
     if (fError) {
       alert("formations取得エラー: " + fError.message);
@@ -242,18 +243,17 @@ export default function FormationPage() {
       return;
     }
 
-    if (formations && formations.length > 0) {
-      const f = formations[0] as any;
-      setFormationId(f.id);
-      setRequestNote(f.request_note ?? "");
-      setAnswerNote(f.answer_note ?? "");
+    if (formation) {
+      setFormationId(formation.id);
+      setRequestcomment(formation.request_comment ?? "");
+      setAnswercomment(formation.answer_comment ?? "");
 
       const { data: slotRows, error: fsError } = await supabase
         .from("formation_slots")
         .select(
           "position, officer_id, inherit_skill1_id, inherit_skill2_id"
         )
-        .eq("formation_id", f.id);
+        .eq("formation_id", formation.id);
 
       if (fsError) {
         alert("formation_slots取得エラー: " + fsError.message);
@@ -306,7 +306,7 @@ export default function FormationPage() {
     // 新しい編成（まだDBには無いので空の状態）をロード
     loadFormation(newLabel);
   };
-
+  
   const handleChangeOfficer = (position: SlotPosition, officerIdStr: string) => {
     const officerId = officerIdStr ? Number(officerIdStr) : null;
     setSlots((prev) => ({
@@ -346,8 +346,8 @@ export default function FormationPage() {
       id: formationId ?? undefined,
       user_key: userKey,
       label: currentLabel,
-      request_note: requestNote,
-      answer_note: answerNote,
+      request_comment: requestcomment,
+      answer_comment: answercomment,
     };
 
     const { data: upserted, error: upError } = await supabase
@@ -514,8 +514,8 @@ export default function FormationPage() {
             className="w-full border rounded px-2 py-1 text-sm"
             rows={3}
             placeholder="例: 信長を軸にお願いします！"
-            value={requestNote}
-            onChange={(e) => setRequestNote(e.target.value)}
+            value={requestcomment}
+            onChange={(e) => setRequestcomment(e.target.value)}
           />
         </div>
         <div>
@@ -526,8 +526,8 @@ export default function FormationPage() {
             className="w-full border rounded px-2 py-1 text-sm"
             rows={3}
             placeholder="例: 武田家中心に組んでみました。"
-            value={answerNote}
-            onChange={(e) => setAnswerNote(e.target.value)}
+            value={answercomment}
+            onChange={(e) => setAnswercomment(e.target.value)}
           />
         </div>
       </div>

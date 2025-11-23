@@ -44,7 +44,7 @@ GitHub で新しい空のリポジトリを作成（例: HenseiSoudanTool）
 GitHub が表示してくれるコマンドを実行：
 
 git branch -M main
-git remote add origin https://github.com/＜あなたのID＞/HenseiSoudanTool.git
+git remote add origin https://github.com/Tansas6322/HenseiSoudanTool.git
 git push -u origin main
 
 
