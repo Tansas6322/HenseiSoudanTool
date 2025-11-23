@@ -92,7 +92,7 @@ export default function MySkillsPage() {
     fetchData();
   }, [ready, userKey]);
 
-  // チェック切り替え
+  // チェック切り替え（カード単位）
   const toggleOwned = (skillId: number) => {
     setOwnedMap((prev) => ({ ...prev, [skillId]: !prev[skillId] }));
   };
@@ -147,6 +147,27 @@ export default function MySkillsPage() {
     return true;
   });
 
+  // ★ 追加：表示中の戦法を一括で所持 / 未所持にする
+  const handleSelectFiltered = () => {
+    setOwnedMap((prev) => {
+      const next = { ...prev };
+      filteredSkills.forEach((s) => {
+        next[s.id] = true;
+      });
+      return next;
+    });
+  };
+
+  const handleClearFiltered = () => {
+    setOwnedMap((prev) => {
+      const next = { ...prev };
+      filteredSkills.forEach((s) => {
+        next[s.id] = false;
+      });
+      return next;
+    });
+  };
+
   const closeDetail = () => setDetailSkill(null);
 
   return (
@@ -190,7 +211,8 @@ export default function MySkillsPage() {
         {saving ? "保存中..." : "所持状況を保存"}
       </button>
 
-      <div className="flex flex-wrap gap-2 mb-4 items-center">
+      {/* フィルタ＋検索 */}
+      <div className="flex flex-wrap gap-2 mb-2 items-center text-sm">
         <span>種類:</span>
         <select
           className="border rounded px-2 py-1"
@@ -214,6 +236,28 @@ export default function MySkillsPage() {
         />
       </div>
 
+      {/* ★ 一括操作ボタン */}
+      <div className="flex flex-wrap gap-2 mb-4 text-xs">
+        <button
+          type="button"
+          onClick={handleSelectFiltered}
+          className="px-3 py-1 rounded border bg-white hover:bg-blue-50"
+        >
+          表示中の戦法をすべて所持にする
+        </button>
+        <button
+          type="button"
+          onClick={handleClearFiltered}
+          className="px-3 py-1 rounded border bg-white hover:bg-gray-50"
+        >
+          表示中の戦法をすべて未所持にする
+        </button>
+        <span className="text-gray-500">
+          （フィルター・検索で絞り込んだ結果にだけ適用されます）
+        </span>
+      </div>
+
+      {/* 戦法カード一覧 */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
         {filteredSkills.map((s) => {
           const owned = !!ownedMap[s.id];

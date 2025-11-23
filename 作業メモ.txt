@@ -12,6 +12,34 @@ https://github.com/Tansas6322/HenseiSoudanTool
 実行環境　node.js　next.js　git
 
 
+リリース手順
+1. プロジェクトフォルダに移動
+cd C:\Users\ryuno\hensei-soudan-app
+
+2. 変更内容を確認
+git status
+赤いファイルが「変更されたファイル」です。
+
+3. 変更をステージング
+git add .
+
+4. コミットする
+git commit -m "fix formation load and comments"
+
+5. GitHub に push
+git push origin main
+
+https://vercel.com/tansas6322s-projects/hensei-soudan-tool/deploymentsを確認
+
+
+
+
+
+
+
+
+
+
 
 
 
