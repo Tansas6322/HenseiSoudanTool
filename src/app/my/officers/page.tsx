@@ -113,7 +113,8 @@ const { data: officersData, error: officersError } = await supabase
         map[u.officer_id] = u.count ?? 0;
       });
 
-      setOfficers((officersData || []) as Officer[]);
+      // 安全側に倒して unknown 経由でキャスト
+      setOfficers(((officersData ?? []) as unknown as Officer[]));
       setCountMap(map);
       setLoading(false);
     };
