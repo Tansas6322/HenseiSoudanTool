@@ -163,41 +163,39 @@ const { data: officersData, error: officersError } = await supabase
   };
 
   // ▼ 詳細モーダルを開く時に戦法説明も読み込み
-  const openDetail = (officer: Officer) => {
-    setDetailOfficer(officer);
+const openDetail = async (officer: Officer) => {
+  setDetailOfficer(officer);
+  setDetailSkills({});
+
+  if (!officer.inherent_skill_name && !officer.inherit_skill_name) return;
+
+  const names = [
+    officer.inherent_skill_name,
+    officer.inherit_skill_name,
+  ].filter((v): v is string => !!v);
+
+  if (names.length === 0) return;
+
+  setDetailSkillsLoading(true);
+
+  const { data, error } = await supabase
+    .from("skills")
+    .select("name, description")
+    .in("name", names);
+
+  if (error) {
+    console.error("skills取得エラー", error);
     setDetailSkills({});
-    if (!officer.inherent_skill_name && !officer.inherit_skill_name) {
-      return;
-    }
+  } else {
+    const map: Record<string, SkillSummary> = {};
+    (data as SkillSummary[] | null)?.forEach((s) => {
+      map[s.name] = s;
+    });
+    setDetailSkills(map);
+  }
 
-    const names = [
-      officer.inherent_skill_name,
-      officer.inherit_skill_name,
-    ].filter((v): v is string => !!v);
-
-    if (names.length === 0) return;
-
-    setDetailSkillsLoading(true);
-
-    supabase
-      .from("skills")
-      // ↓ skillsテーブルのカラム名に合わせて変更してね
-      .select("name, description")
-      .in("name", names)
-      .then(({ data, error }) => {
-        if (error) {
-          console.error("skills取得エラー", error);
-          setDetailSkills({});
-        } else {
-          const map: Record<string, SkillSummary> = {};
-          (data as SkillSummary[] | null)?.forEach((s) => {
-            map[s.name] = s;
-          });
-          setDetailSkills(map);
-        }
-      })
-      .finally(() => setDetailSkillsLoading(false));
-  };
+  setDetailSkillsLoading(false);
+};
 
   const closeDetail = () => {
     setDetailOfficer(null);
