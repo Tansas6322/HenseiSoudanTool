@@ -4,16 +4,18 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useUserKey } from "@/hooks/useUserKey";
 
+type SkillRank = "S" | "A" | "B" | "C" | null;
+
 type Skill = {
   id: number;
   name: string;
   category: string | null;
   trigger_rate: number | null;
   owner_name: string | null; // 固有戦法判定用
-  // ▼ 詳細表示用
   description: string | null;
   inherit1_name: string | null;
   inherit2_name: string | null;
+  rank: SkillRank; // DBから受け取る
 };
 
 type UserSkill = {
@@ -27,8 +29,13 @@ export default function MySkillsPage() {
   const [ownedMap, setOwnedMap] = useState<Record<number, boolean>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+
   const [filterCategory, setFilterCategory] = useState<string>("");
+  const [filterRank, setFilterRank] = useState<string>(""); // ★ ランクフィルター
   const [search, setSearch] = useState("");
+
+  // ソート（ランクのみ）
+  const [sortType, setSortType] = useState<string>("rank_desc");
 
   // 詳細モーダル用
   const [detailSkill, setDetailSkill] = useState<Skill | null>(null);
@@ -43,7 +50,7 @@ export default function MySkillsPage() {
     const fetchData = async () => {
       setLoading(true);
 
-      // skills 読み込み（owner_name != null = 固有戦法 を除外）
+      // skills 読み込み（owner_name != null = 固有戦法 は除外）
       const { data: skillsData, error: skillsError } = await supabase
         .from("skills")
         .select(
@@ -55,10 +62,11 @@ export default function MySkillsPage() {
           owner_name,
           description,
           inherit1_name,
-          inherit2_name
+          inherit2_name,
+          rank
         `
         )
-        .is("owner_name", null)
+        .not("inherit1_name", "is", null)  
         .order("name", { ascending: true });
 
       if (skillsError) {
@@ -79,13 +87,13 @@ export default function MySkillsPage() {
         return;
       }
 
-      const map: Record<number, boolean> = {};
+      const ownedMapTmp: Record<number, boolean> = {};
       (userSkills as UserSkill[] | null)?.forEach((u) => {
-        map[u.skill_id] = (u.count ?? 0) > 0;
+        ownedMapTmp[u.skill_id] = (u.count ?? 0) > 0;
       });
 
       setSkills((skillsData || []) as Skill[]);
-      setOwnedMap(map);
+      setOwnedMap(ownedMapTmp);
       setLoading(false);
     };
 
@@ -143,11 +151,36 @@ export default function MySkillsPage() {
   // フィルタ処理
   const filteredSkills = skills.filter((s) => {
     if (filterCategory && s.category !== filterCategory) return false;
+    if (filterRank) {
+      const r = s.rank ?? "C";
+      if (r !== filterRank) return false;
+    }
     if (search && !s.name.includes(search)) return false;
     return true;
   });
 
-  // ★ 追加：表示中の戦法を一括で所持 / 未所持にする
+  // ソート処理（ランクのみ）
+  const rankOrder: Record<string, number> = {
+    S: 3,
+    A: 2,
+    B: 1,
+    C: 0,
+  };
+
+  const getRankValue = (r: SkillRank) =>
+    r && rankOrder[r] !== undefined ? rankOrder[r] : 0;
+
+  const sortedSkills = [...filteredSkills].sort((a, b) => {
+    switch (sortType) {
+      case "rank_asc":
+        return getRankValue(a.rank) - getRankValue(b.rank);
+      case "rank_desc":
+      default:
+        return getRankValue(b.rank) - getRankValue(a.rank);
+    }
+  });
+
+  // 一括操作（表示中のみ）
   const handleSelectFiltered = () => {
     setOwnedMap((prev) => {
       const next = { ...prev };
@@ -211,32 +244,63 @@ export default function MySkillsPage() {
         {saving ? "保存中..." : "所持状況を保存"}
       </button>
 
-      {/* フィルタ＋検索 */}
-      <div className="flex flex-wrap gap-2 mb-2 items-center text-sm">
-        <span>種類:</span>
-        <select
-          className="border rounded px-2 py-1"
-          value={filterCategory}
-          onChange={(e) => setFilterCategory(e.target.value)}
-        >
-          <option value="">全部</option>
-          <option value="能動">能動</option>
-          <option value="指揮">指揮</option>
-          <option value="受動">受動</option>
-          <option value="兵種">兵種</option>
-          <option value="突撃">突撃</option>
-        </select>
+      {/* フィルタ＋検索＋ソート */}
+      <div className="flex flex-wrap gap-3 mb-2 items-center text-sm">
+        <div className="flex items-center gap-1">
+          <span>種類:</span>
+          <select
+            className="border rounded px-2 py-1"
+            value={filterCategory}
+            onChange={(e) => setFilterCategory(e.target.value)}
+          >
+            <option value="">全部</option>
+            <option value="能動">能動</option>
+            <option value="指揮">指揮</option>
+            <option value="受動">受動</option>
+            <option value="兵種">兵種</option>
+            <option value="突撃">突撃</option>
+          </select>
+        </div>
 
-        <span className="ml-4">検索:</span>
-        <input
-          className="border rounded px-2 py-1"
-          placeholder="戦法名"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
+        <div className="flex items-center gap-1">
+          <span>ランク:</span>
+          <select
+            className="border rounded px-2 py-1"
+            value={filterRank}
+            onChange={(e) => setFilterRank(e.target.value)}
+          >
+            <option value="">全部</option>
+            <option value="S">S</option>
+            <option value="A">A</option>
+            <option value="B">B</option>
+            <option value="C">C</option>
+          </select>
+        </div>
+
+        <div className="flex items-center gap-1">
+          <span>検索:</span>
+          <input
+            className="border rounded px-2 py-1"
+            placeholder="戦法名"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+
+        <div className="flex items-center gap-1">
+          <span>ソート:</span>
+          <select
+            className="border rounded px-2 py-1"
+            value={sortType}
+            onChange={(e) => setSortType(e.target.value)}
+          >
+            <option value="rank_desc">ランク 高い順 (S→A→B→C)</option>
+            <option value="rank_asc">ランク 低い順 (C→B→A→S)</option>
+          </select>
+        </div>
       </div>
 
-      {/* ★ 一括操作ボタン */}
+      {/* 一括操作ボタン */}
       <div className="flex flex-wrap gap-2 mb-4 text-xs">
         <button
           type="button"
@@ -259,9 +323,10 @@ export default function MySkillsPage() {
 
       {/* 戦法カード一覧 */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-        {filteredSkills.map((s) => {
+        {sortedSkills.map((s) => {
           const owned = !!ownedMap[s.id];
           const skillImageSrc = `/skills/${s.id}.png`;
+          const rankLabel = s.rank ?? "C";
 
           return (
             <div
@@ -283,10 +348,16 @@ export default function MySkillsPage() {
                       "/no-image.png";
                   }}
                 />
-                <div>
+                <div className="flex-1">
                   <div className="font-bold">{s.name}</div>
-                  <div className="text-sm text-gray-600">
-                    {s.category} / 発動率: {s.trigger_rate ?? "-"}%
+                  <div className="text-xs text-gray-700">
+                    種類: {s.category ?? "-"}
+                  </div>
+                  <div className="text-xs text-gray-700">
+                    ランク: <span className="font-semibold">{rankLabel}</span>
+                  </div>
+                  <div className="text-xs text-gray-600">
+                    発動率: {s.trigger_rate ?? "-"}%
                   </div>
                 </div>
               </div>
@@ -325,6 +396,7 @@ export default function MySkillsPage() {
 
             <div className="text-sm space-y-1 mb-3">
               <div>種類: {detailSkill.category ?? "-"}</div>
+              <div>ランク: {detailSkill.rank ?? "C"}</div>
               <div>発動率: {detailSkill.trigger_rate ?? "-"}%</div>
             </div>
 

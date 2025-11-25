@@ -14,8 +14,8 @@ https://github.com/Tansas6322/HenseiSoudanTool
 
 リリース手順
 1. プロジェクトフォルダに移動
-cd C:\Users\ryuno\hensei-soudan-app
-
+cd C:\Users\ryuno\hensei-soudan-app 
+cd C:\Users\rnaka\hensei-soudan-app
 2. 変更内容を確認
 git status
 赤いファイルが「変更されたファイル」です。
