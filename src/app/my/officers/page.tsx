@@ -12,7 +12,7 @@ type Officer = {
   faction: string | null; // 勢力
   house: string | null; // 家門
 
-  // ▼ officersテーブルのカラム（スクショに合わせている）
+  // ▼ officersテーブルのカラム
   inherent_skill_name: string | null; // 固有戦法名
   inherent_skill_type: string | null; // 固有戦法の種別（指揮/能動/受動…）
   inherit_skill_name: string | null; // 伝承戦法名
@@ -30,8 +30,6 @@ type UserOfficer = {
 // skillsテーブルから取ってくる内容
 type SkillSummary = {
   name: string;
-  // ← skillsテーブルの「説明」カラム名に合わせて変更してね
-  // 例: "description" や "detail" など
   description: string | null;
 };
 
@@ -55,6 +53,9 @@ export default function MyOfficersPage() {
   const [filterCost, setFilterCost] = useState<string>(""); // コスト
   const [filterFaction, setFilterFaction] = useState<string>(""); // 勢力
 
+  // ソート用
+  const [sortType, setSortType] = useState<string>("");
+
   useEffect(() => {
     if (!ready) return;
     if (!userKey) {
@@ -66,29 +67,29 @@ export default function MyOfficersPage() {
       setLoading(true);
 
       // 武将一覧
-const { data: officersData, error: officersError } = await supabase
-  .from("officers")
-  // 型推論を any にして ParserError を回避
-  .select<any>(
-    `
-    id,
-    name,
-    rarity,
-    cost_raw,
-    faction,
-    house,
-    inherent_skill_name,
-    inherent_skill_type,
-    inherit_skill_name,
-    unique_trait,
-    trait凸1,
-    trait凸3,
-    trait凸5
-  `
-  )
-  .order("rarity", { ascending: false })
-  .order("cost_raw", { ascending: true })
-  .order("name", { ascending: true });
+      const { data: officersData, error: officersError } = await supabase
+        .from("officers")
+        // 型推論を any にして ParserError を回避
+        .select<any>(
+          `
+          id,
+          name,
+          rarity,
+          cost_raw,
+          faction,
+          house,
+          inherent_skill_name,
+          inherent_skill_type,
+          inherit_skill_name,
+          unique_trait,
+          trait凸1,
+          trait凸3,
+          trait凸5
+        `
+        )
+        .order("rarity", { ascending: false })
+        .order("cost_raw", { ascending: true })
+        .order("name", { ascending: true });
 
       if (officersError) {
         alert("officers取得エラー: " + officersError.message);
@@ -114,7 +115,7 @@ const { data: officersData, error: officersError } = await supabase
       });
 
       // 安全側に倒して unknown 経由でキャスト
-      setOfficers(((officersData ?? []) as unknown as Officer[]));
+      setOfficers((officersData ?? []) as unknown as Officer[]);
       setCountMap(map);
       setLoading(false);
     };
@@ -162,40 +163,40 @@ const { data: officersData, error: officersError } = await supabase
     setSaving(false);
   };
 
-  // ▼ 詳細モーダルを開く時に戦法説明も読み込み
-const openDetail = async (officer: Officer) => {
-  setDetailOfficer(officer);
-  setDetailSkills({});
-
-  if (!officer.inherent_skill_name && !officer.inherit_skill_name) return;
-
-  const names = [
-    officer.inherent_skill_name,
-    officer.inherit_skill_name,
-  ].filter((v): v is string => !!v);
-
-  if (names.length === 0) return;
-
-  setDetailSkillsLoading(true);
-
-  const { data, error } = await supabase
-    .from("skills")
-    .select("name, description")
-    .in("name", names);
-
-  if (error) {
-    console.error("skills取得エラー", error);
+  // 詳細モーダルを開く時に戦法説明も読み込み
+  const openDetail = async (officer: Officer) => {
+    setDetailOfficer(officer);
     setDetailSkills({});
-  } else {
-    const map: Record<string, SkillSummary> = {};
-    (data as SkillSummary[] | null)?.forEach((s) => {
-      map[s.name] = s;
-    });
-    setDetailSkills(map);
-  }
 
-  setDetailSkillsLoading(false);
-};
+    if (!officer.inherent_skill_name && !officer.inherit_skill_name) return;
+
+    const names = [
+      officer.inherent_skill_name,
+      officer.inherit_skill_name,
+    ].filter((v): v is string => !!v);
+
+    if (names.length === 0) return;
+
+    setDetailSkillsLoading(true);
+
+    const { data, error } = await supabase
+      .from("skills")
+      .select("name, description")
+      .in("name", names);
+
+    if (error) {
+      console.error("skills取得エラー", error);
+      setDetailSkills({});
+    } else {
+      const map: Record<string, SkillSummary> = {};
+      (data as SkillSummary[] | null)?.forEach((s) => {
+        map[s.name] = s;
+      });
+      setDetailSkills(map);
+    }
+
+    setDetailSkillsLoading(false);
+  };
 
   const closeDetail = () => {
     setDetailOfficer(null);
@@ -230,11 +231,15 @@ const openDetail = async (officer: Officer) => {
   ).sort((a, b) => b - a); // 高い★から
 
   const costOptions = Array.from(
-    new Set(officers.map((o) => o.cost_raw).filter((v): v is number => v != null))
+    new Set(
+      officers.map((o) => o.cost_raw).filter((v): v is number => v != null)
+    )
   ).sort((a, b) => a - b);
 
   const factionOptions = Array.from(
-    new Set(officers.map((o) => o.faction).filter((v): v is string => !!v))
+    new Set(
+      officers.map((o) => o.faction).filter((v): v is string => !!v)
+    )
   ).sort();
 
   // 検索 & フィルター適用
@@ -246,13 +251,51 @@ const openDetail = async (officer: Officer) => {
     return true;
   });
 
+  // ソート適用
+  const sortedOfficers = [...filteredOfficers];
+  sortedOfficers.sort((a, b) => {
+    switch (sortType) {
+      case "rarity_desc":
+        return b.rarity - a.rarity;
+      case "rarity_asc":
+        return a.rarity - b.rarity;
+      case "cost_desc":
+        return (b.cost_raw ?? 0) - (a.cost_raw ?? 0);
+      case "cost_asc":
+        return (a.cost_raw ?? 0) - (b.cost_raw ?? 0);
+      default:
+        return 0;
+    }
+  });
+
+  // 表示中の武将を一括で 1枚所持 / 未所持 にする
+  const handleSelectFiltered = () => {
+    setCountMap((prev) => {
+      const next = { ...prev };
+      filteredOfficers.forEach((o) => {
+        const current = prev[o.id] ?? 0;
+        // まだ0枚なら 1枚にする（すでに複数枚持っている場合はそのまま）
+        next[o.id] = current > 0 ? current : 1;
+      });
+      return next;
+    });
+  };
+
+  const handleClearFiltered = () => {
+    setCountMap((prev) => {
+      const next = { ...prev };
+      filteredOfficers.forEach((o) => {
+        next[o.id] = 0;
+      });
+      return next;
+    });
+  };
+
   // 特性をまとめて1本の文字列にするヘルパー
   const buildTraitsText = (officer: Officer) => {
-    const list = [
-      officer.trait凸1,
-      officer.trait凸3,
-      officer.trait凸5,
-    ].filter((v): v is string => !!v);
+    const list = [officer.trait凸1, officer.trait凸3, officer.trait凸5].filter(
+      (v): v is string => !!v
+    );
     return list.length ? list.join(" / ") : "-";
   };
 
@@ -280,7 +323,7 @@ const openDetail = async (officer: Officer) => {
       </div>
 
       {/* 共通メニュー */}
-      <div className="mb-4Kana flex gap-4 text-sm">
+      <div className="mb-4 flex gap-4 text-sm">
         <a href="/" className="text-blue-600 underline">
           ホーム
         </a>
@@ -362,11 +405,48 @@ const openDetail = async (officer: Officer) => {
             ))}
           </select>
         </div>
+
+        {/* ソート */}
+        <div className="flex items-center gap-1">
+          <span>ソート:</span>
+          <select
+            className="border rounded px-2 py-1"
+            value={sortType}
+            onChange={(e) => setSortType(e.target.value)}
+          >
+            <option value="">なし</option>
+            <option value="rarity_desc">★ 高い順</option>
+            <option value="rarity_asc">★ 低い順</option>
+            <option value="cost_desc">コスト 高い順</option>
+            <option value="cost_asc">コスト 低い順</option>
+          </select>
+        </div>
+      </div>
+
+      {/* 一括操作ボタン */}
+      <div className="mb-4 flex flex-wrap gap-2 text-xs">
+        <button
+          type="button"
+          onClick={handleSelectFiltered}
+          className="px-3 py-1 rounded border bg-white hover:bg-blue-50"
+        >
+          表示中の武将をすべて1枚所持にする
+        </button>
+        <button
+          type="button"
+          onClick={handleClearFiltered}
+          className="px-3 py-1 rounded border bg-white hover:bg-gray-50"
+        >
+          表示中の武将をすべて未所持にする
+        </button>
+        <span className="text-gray-500">
+          （フィルター・検索で絞り込んだ結果にだけ適用されます）
+        </span>
       </div>
 
       {/* 武将カード */}
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mt-2">
-        {filteredOfficers.map((o) => {
+        {sortedOfficers.map((o) => {
           const count = countMap[o.id] ?? 0;
           const owned = count > 0;
 
@@ -436,7 +516,7 @@ const openDetail = async (officer: Officer) => {
         })}
       </div>
 
-      {/* 詳細モーダル（PC/スマホ共通） */}
+      {/* 詳細モーダル */}
       {detailOfficer && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
