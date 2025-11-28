@@ -27,7 +27,7 @@ export default function Home() {
           </p>
         </header>
 
-        {/* 現在のユーザー情報 */}
+        {/* 現在のユーザー情報（ログイン／切り替えもここに集約） */}
         <section className="bg-white border rounded-lg p-3 text-sm flex items-center justify-between">
           <div>
             <div className="text-gray-600">現在のユーザー</div>
@@ -38,6 +38,9 @@ export default function Home() {
                 <span className="text-gray-400">未ログイン</span>
               )}
             </div>
+            <p className="mt-1 text-xs text-gray-500">
+              依頼者としても編成者としても、ここでユーザー名を切り替えてから各画面に進んでください。
+            </p>
           </div>
           <div className="flex gap-2">
             <Link
@@ -66,11 +69,12 @@ export default function Home() {
         <section className="bg-white border rounded-lg p-4">
           <h2 className="text-base font-semibold mb-2">使い方（ざっくり）</h2>
           <ol className="list-decimal pl-5 text-sm space-y-1 text-gray-700">
-            <li>依頼者が「ログイン」して、自分のユーザー名を登録する。</li>
+            <li>依頼者が自分のユーザー名でログインする。</li>
             <li>「所持武将登録」と「所持戦法登録」で所持状況を登録する。</li>
-            <li>回答者（編成者）は、自分のユーザー名でログインする。</li>
+            <li>編成者も自分のユーザー名でログインする。</li>
             <li>
-              「編成作成」で<span className="font-semibold">相談者（依頼者）</span>
+              編成者は「編成作成」で
+              <span className="font-semibold">相談者（依頼者）</span>
               を選択し、その人の所持状況を見ながら編成を作る。
             </li>
           </ol>
@@ -80,20 +84,9 @@ export default function Home() {
         <section className="bg-white border rounded-lg p-4">
           <h2 className="text-base font-semibold mb-2">依頼者向けメニュー</h2>
           <p className="text-xs text-gray-600 mb-3">
-            まずは自分のユーザー名でログインして、所持武将・戦法を登録してください。
+            上部の「現在のユーザー」から自分のユーザー名を選択したうえで、所持情報を登録してください。
           </p>
-          <div className="grid gap-3 md:grid-cols-3 text-sm">
-            <Link
-              href="/login"
-              className="border rounded-lg p-3 hover:bg-blue-50 flex flex-col"
-            >
-              <span className="font-semibold mb-1">ログイン / ユーザー選択</span>
-              <span className="text-xs text-gray-600">
-                自分のユーザー名でログインします。
-                初回はここでユーザーを作成します。
-              </span>
-            </Link>
-
+          <div className="grid gap-3 md:grid-cols-2 text-sm">
             <Link
               href="/my/officers"
               className="border rounded-lg p-3 hover:bg-blue-50 flex flex-col"
@@ -116,27 +109,16 @@ export default function Home() {
           </div>
         </section>
 
-        {/* 回答者向けメニュー */}
+        {/* 回答者（編成者）向けメニュー */}
         <section className="bg-white border rounded-lg p-4">
           <h2 className="text-base font-semibold mb-2">回答者向けメニュー</h2>
           <p className="text-xs text-gray-600 mb-3">
-            相談を受けるときは、
-            <span className="font-semibold">自分のユーザー名でログイン</span>
-            したうえで、「編成作成」画面で相談者のユーザーを選択して編成を作成します。
+            上部の「現在のユーザー」で
+            <span className="font-semibold">自分（編成者）のユーザー名</span>
+            を選択したうえで、「編成作成」から相談者の編成を作成します。
           </p>
 
-          <div className="grid gap-3 md:grid-cols-2 text-sm">
-            <Link
-              href="/login"
-              className="border rounded-lg p-3 hover:bg-green-50 flex flex-col"
-            >
-              <span className="font-semibold mb-1">編成者としてログイン</span>
-              <span className="text-xs text-gray-600">
-                自分のユーザー名でログインします。
-                作成した編成には「編成者」としてあなたの名前が保存されます。
-              </span>
-            </Link>
-
+          <div className="grid gap-3 md:grid-cols-1 text-sm">
             <Link
               href="/formation"
               className="border rounded-lg p-3 hover:bg-green-50 flex flex-col"
