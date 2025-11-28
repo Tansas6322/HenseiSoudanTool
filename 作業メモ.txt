@@ -1,3 +1,57 @@
+環境
+DB　supabase
+https://supabase.com/dashboard/project/knegullkryobpqwkhfqy/sql/3e3d352d-e199-43e9-ac11-28a97351ec99?schema=public
+
+src管理　github
+https://github.com/Tansas6322/HenseiSoudanTool
+
+デプロイ　Vercel
+https://vercel.com/tansas6322s-projects/hensei-soudan-tool
+
+開発環境
+Node.jsインストール後に
+
+cmdで
+cd C:\Users\hensei-soudan-app
+npm run dev 
+
+
+
+リリース手順
+1. プロジェクトフォルダに移動
+cd C:\Users\hensei-soudan-app
+2. 変更内容を確認
+git status
+赤いファイルが「変更されたファイル」です。
+
+3. 変更をステージング
+git add .
+
+4. コミットする
+git commit -m "fix formation load and comments"
+
+5. GitHub に push
+git push origin main
+
+6．vercelでデプロイ
+https://vercel.com/tansas6322s-projects/hensei-soudan-tool/deploymentsを確認
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 開発モード切替　cmdで
 cd C:\Users\ryuno\hensei-soudan-app
 npm run dev 
@@ -8,11 +62,11 @@ https://supabase.com/dashboard/project/knegullkryobpqwkhfqy/sql/3e3d352d-e199-43
 src管理　github
 https://github.com/Tansas6322/HenseiSoudanTool
 デプロイ　Vercel
-
+https://vercel.com/tansas6322s-projects/hensei-soudan-tool
 実行環境　node.js　next.js　git
 
 
-リリース手順
+リリース手順（1～5はcmdで叩く）
 1. プロジェクトフォルダに移動
 cd C:\Users\ryuno\hensei-soudan-app 
 cd C:\Users\rnaka\hensei-soudan-app
@@ -29,6 +83,7 @@ git commit -m "fix formation load and comments"
 5. GitHub に push
 git push origin main
 
+6．vercelでデプロイ
 https://vercel.com/tansas6322s-projects/hensei-soudan-tool/deploymentsを確認
 
 

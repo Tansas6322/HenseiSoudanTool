@@ -49,23 +49,10 @@ const MAX_FORMATIONS = 5;
 
 export default function FormationPage() {
   const { userKey, ready, clearUserKey } = useUserKey();
-  const advisorKey = userKey; // ログインユーザー = 編成者
 
-  // 相談者関連
-  const [ownerList, setOwnerList] = useState<string[]>([]);
-  const [ownerKey, setOwnerKey] = useState<string>("");
-
-  // 編成者タブ（案2）
-  const [advisorList, setAdvisorList] = useState<string[]>([]);
-  const [selectedAdvisor, setSelectedAdvisor] = useState<string>(""); // 表示中の編成者
-
-  // advisorKeyごとの編成ラベル一覧
-  const [labelMap, setLabelMap] = useState<Record<string, string[]>>({});
-  const [knownLabels, setKnownLabels] = useState<string[]>(["編成1"]);
   const [currentLabel, setCurrentLabel] = useState<string>("編成1");
   const [formationId, setFormationId] = useState<number | null>(null);
 
-  // マスタ
   const [officers, setOfficers] = useState<Officer[]>([]);
   const [skills, setSkills] = useState<Skill[]>([]);
   const [slots, setSlots] = useState<Record<SlotPosition, SlotState>>(
@@ -76,71 +63,33 @@ export default function FormationPage() {
   const [formationLoading, setFormationLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  // ユーザーが持っている編成ラベル一覧
+  const [knownLabels, setKnownLabels] = useState<string[]>(["編成1"]);
+
   // コメント
   const [requestcomment, setRequestcomment] = useState<string>(""); // 依頼者コメント
   const [answercomment, setAnswercomment] = useState<string>(""); // 回答者コメント
 
-  // 戦法詳細モーダル
+  // 戦法詳細用
   const [detailSkill, setDetailSkill] = useState<Skill | null>(null);
 
-  const isMyAdvisorView =
-    !!advisorKey && !!selectedAdvisor && advisorKey === selectedAdvisor;
-
-  // 相談者一覧を取得（user_officers に登場した user_key）
+  // 最初に「所持武将」「使える戦法」「編成一覧」のマスタを読込
   useEffect(() => {
     if (!ready) return;
-    if (!advisorKey) {
+    if (!userKey) {
       setLoading(false);
       return;
     }
 
-    const fetchOwners = async () => {
+    const fetchMaster = async () => {
       setLoading(true);
 
-      const { data: ownerRows, error } = await supabase
-        .from("user_officers")
-        .select("user_key")
-        .not("user_key", "is", null);
-
-      if (error) {
-        alert("相談者一覧取得エラー: " + error.message);
-        setLoading(false);
-        return;
-      }
-
-      const owners = Array.from(
-        new Set((ownerRows || []).map((r: any) => r.user_key as string))
-      ).sort((a, b) => a.localeCompare(b, "ja"));
-
-      setOwnerList(owners);
-
-      // デフォルトで最初の相談者を選択
-      if (!ownerKey && owners.length > 0) {
-        setOwnerKey(owners[0]);
-      }
-
-      setLoading(false);
-    };
-
-    fetchOwners();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready, advisorKey]);
-
-  // ownerKey が決まったら、その相談者のマスタ & 編成一覧を取得
-  useEffect(() => {
-    if (!ready) return;
-    if (!advisorKey) return;
-    if (!ownerKey) return;
-
-    const fetchOwnerData = async () => {
-      setLoading(true);
-
-      // 1. 相談者の所持武将
+      // 1. 所持武将
       const { data: userOfficers, error: uoError } = await supabase
         .from("user_officers")
         .select("officer_id")
-        .eq("user_key", ownerKey)
-        .gt("count", 0);
+        .eq("user_key", userKey)
+        .gt("count", 0); // count > 0 を所持とみなす
 
       if (uoError) {
         alert("user_officers取得エラー: " + uoError.message);
@@ -149,8 +98,8 @@ export default function FormationPage() {
       }
 
       const officerIds = (userOfficers || []).map((u) => u.officer_id);
-      let ownedOfficers: Officer[] = [];
 
+      let ownedOfficers: Officer[] = [];
       if (officerIds.length > 0) {
         const { data: officersData, error: oError } = await supabase
           .from("officers")
@@ -164,18 +113,17 @@ export default function FormationPage() {
           setLoading(false);
           return;
         }
-
         ownedOfficers = (officersData || []) as Officer[];
       }
-
       setOfficers(ownedOfficers);
+
       const ownedOfficerNames = ownedOfficers.map((o) => o.name);
 
-      // 2. 相談者の所持戦法（カードとして）
+      // 2. 所持戦法（カードとして）
       const { data: userSkills, error: usError } = await supabase
         .from("user_skills")
         .select("skill_id, count")
-        .eq("user_id", ownerKey)
+        .eq("user_id", userKey)
         .gt("count", 0);
 
       if (usError) {
@@ -188,13 +136,13 @@ export default function FormationPage() {
         (userSkills || []).map((s) => s.skill_id as number)
       );
 
-      // 3. skills 全体（inherit1_name が NOT NULL = 伝承あり戦法だけ）
+      // 3. skills 全体（owner_name が NULL = 固有ではない戦法）
       const { data: skillsData, error: sError } = await supabase
         .from("skills")
         .select(
-          "id, name, category, description, inherit1_name, inherit2_name, trigger_rate"
+          "id, name, category, description, inherit1_name, inherit2_name, trigger_rate, owner_name"
         )
-        .not("inherit1_name", "is", null)
+        .is("owner_name", null)
         .order("name", { ascending: true });
 
       if (sError) {
@@ -229,11 +177,11 @@ export default function FormationPage() {
 
       setSkills(usableSkills);
 
-      // 4. この相談者の編成一覧を取得（owner_key 単位）
+      // 4. このユーザーの編成一覧を取得
       const { data: formationRows, error: formError } = await supabase
         .from("formations")
-        .select("label, advisor_key")
-        .eq("owner_key", ownerKey);
+        .select("label")
+        .eq("user_key", userKey);
 
       if (formError) {
         alert("formations一覧取得エラー: " + formError.message);
@@ -241,70 +189,39 @@ export default function FormationPage() {
         return;
       }
 
-      const map: Record<string, string[]> = {};
+      let labels = Array.from(
+        new Set((formationRows || []).map((r) => r.label as string))
+      );
 
-      (formationRows || []).forEach((r: any) => {
-        const adv = r.advisor_key as string | null;
-        if (!adv) return;
-        if (!map[adv]) map[adv] = [];
-        map[adv].push(r.label as string);
-      });
-
-      // ラベルを編成1, 編成2,... の順にソート
-      Object.keys(map).forEach((adv) => {
-        const labels = Array.from(new Set(map[adv]));
+      // ラベルがなければ編成1を作っておくイメージ
+      if (labels.length === 0) {
+        labels = ["編成1"];
+      } else {
+        // 編成1, 編成2, ... の順にソートしておく
         labels.sort((a, b) => {
           const na = parseInt(a.replace("編成", ""), 10);
           const nb = parseInt(b.replace("編成", ""), 10);
           if (Number.isNaN(na) || Number.isNaN(nb)) {
-            return a.localeCompare(b, "ja");
+            return a.localeCompare(b);
           }
           return na - nb;
         });
-        map[adv] = labels;
-      });
+      }
 
-      // この相談者に対して編成を持っている編成者一覧 + 自分を必ず含める
-      const advisors = Array.from(
-        new Set([...Object.keys(map), advisorKey])
-      ).sort((a, b) => a.localeCompare(b, "ja"));
-
-      setLabelMap(map);
-      setAdvisorList(advisors);
-
-      // 表示中の編成者を決める（優先：今選択中 > 自分）
-      const initialAdvisor = advisors.includes(selectedAdvisor)
-        ? selectedAdvisor
-        : advisorKey;
-
-      setSelectedAdvisor(initialAdvisor);
-
-      const labelsForInitial =
-        (map[initialAdvisor] && map[initialAdvisor].length > 0
-          ? map[initialAdvisor]
-          : ["編成1"]);
-
-      setKnownLabels(labelsForInitial);
+      setKnownLabels(labels);
       setLoading(false);
 
-      // 最初の編成をロード
-      if (labelsForInitial.length > 0) {
-        await loadFormation(ownerKey, initialAdvisor, labelsForInitial[0]);
-      }
+      // 一番最初の編成をロード
+      await loadFormation(labels[0]);
     };
 
-    fetchOwnerData();
+    fetchMaster();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready, advisorKey, ownerKey]);
+  }, [ready, userKey]);
 
   // 指定ラベルの編成をロード
-  const loadFormation = async (
-    ownerKeyParam: string,
-    advisorKeyParam: string,
-    label: string
-  ) => {
-    if (!ownerKeyParam || !advisorKeyParam) return;
-
+  const loadFormation = async (label: string) => {
+    if (!userKey) return;
     setFormationLoading(true);
     setCurrentLabel(label);
     setFormationId(null);
@@ -315,9 +232,9 @@ export default function FormationPage() {
     const { data: formation, error: fError } = await supabase
       .from("formations")
       .select("id, label, request_comment, answer_comment")
-      .eq("owner_key", ownerKeyParam)
-      .eq("advisor_key", advisorKeyParam)
+      .eq("user_key", userKey)
       .eq("label", label)
+      // ここを .limit(1) ではなく maybeSingle() にする
       .maybeSingle();
 
     if (fError) {
@@ -333,7 +250,9 @@ export default function FormationPage() {
 
       const { data: slotRows, error: fsError } = await supabase
         .from("formation_slots")
-        .select("position, officer_id, inherit_skill1_id, inherit_skill2_id")
+        .select(
+          "position, officer_id, inherit_skill1_id, inherit_skill2_id"
+        )
         .eq("formation_id", formation.id);
 
       if (fsError) {
@@ -348,7 +267,7 @@ export default function FormationPage() {
         sub2: { officerId: null, inherit1Id: null, inherit2Id: null },
       };
 
-      (slotRows || []).forEach((row: any) => {
+      (slotRows || []).forEach((row) => {
         const pos = row.position as SlotPosition;
         if (pos in newSlots) {
           newSlots[pos] = {
@@ -365,28 +284,15 @@ export default function FormationPage() {
     setFormationLoading(false);
   };
 
-  // ＋ボタンで新しい編成タブを追加（自分のタブでのみ）
+  // ＋ボタンで新しい編成タブを追加
   const handleAddFormation = () => {
-    if (!ownerKey) {
-      alert("先に相談者を選択してください");
-      return;
-    }
-    if (!advisorKey) {
-      alert("ログイン情報が取得できません");
-      return;
-    }
-    if (!isMyAdvisorView) {
-      alert("編成を追加できるのは自分の編成者タブのみです。");
-      return;
-    }
-
-    const myLabels = labelMap[advisorKey] ?? [];
-    if (myLabels.length >= MAX_FORMATIONS) {
+    if (knownLabels.length >= MAX_FORMATIONS) {
       alert(`編成は最大 ${MAX_FORMATIONS} 個までです。`);
       return;
     }
 
-    const usedIndices = myLabels
+    // 既存ラベルから番号を抽出して、空いている最小の番号を探す
+    const usedIndices = knownLabels
       .map((lbl) => parseInt(lbl.replace("編成", ""), 10))
       .filter((n) => !Number.isNaN(n));
 
@@ -396,19 +302,11 @@ export default function FormationPage() {
     }
 
     const newLabel = `編成${nextIndex}`;
-    const newMyLabels = [...myLabels, newLabel];
-
-    setLabelMap((prev) => ({
-      ...prev,
-      [advisorKey]: newMyLabels,
-    }));
-    setKnownLabels(newMyLabels);
-    setSelectedAdvisor(advisorKey);
-
+    setKnownLabels((prev) => [...prev, newLabel]);
     // 新しい編成（まだDBには無いので空の状態）をロード
-    loadFormation(ownerKey, advisorKey, newLabel);
+    loadFormation(newLabel);
   };
-
+  
   const handleChangeOfficer = (position: SlotPosition, officerIdStr: string) => {
     const officerId = officerIdStr ? Number(officerIdStr) : null;
     setSlots((prev) => ({
@@ -436,27 +334,17 @@ export default function FormationPage() {
   };
 
   const handleSave = async () => {
-    if (!advisorKey) {
-      alert("ログイン情報が取得できません");
-      return;
-    }
-    if (!ownerKey) {
-      alert("先に相談者を選択してください");
-      return;
-    }
-    if (!isMyAdvisorView) {
-      alert("保存できるのは自分の編成者タブのみです。");
+    if (!userKey) {
+      alert("先にユーザー名を選択してください");
       return;
     }
 
     setSaving(true);
 
-    // formations を upsert（相談者×編成者×ラベル）
+    // formations を upsert（現在のラベル）
     const formationRow = {
       id: formationId ?? undefined,
-      owner_key: ownerKey,
-      advisor_key: advisorKey,
-      user_key: ownerKey,    
+      user_key: userKey,
       label: currentLabel,
       request_comment: requestcomment,
       answer_comment: answercomment,
@@ -528,25 +416,6 @@ export default function FormationPage() {
 
     alert(`${currentLabel} を保存しました！`);
     setSaving(false);
-
-    // ラベルマップも更新（自分のラベル一覧に currentLabel を必ず含める）
-    setLabelMap((prev) => {
-      const myLabels = new Set(prev[advisorKey] ?? []);
-      myLabels.add(currentLabel);
-      const newMyLabels = Array.from(myLabels).sort((a, b) => {
-        const na = parseInt(a.replace("編成", ""), 10);
-        const nb = parseInt(b.replace("編成", ""), 10);
-        if (Number.isNaN(na) || Number.isNaN(nb)) {
-          return a.localeCompare(b, "ja");
-        }
-        return na - nb;
-      });
-      setKnownLabels(newMyLabels);
-      return {
-        ...prev,
-        [advisorKey]: newMyLabels,
-      };
-    });
   };
 
   // 表示分岐
@@ -554,7 +423,7 @@ export default function FormationPage() {
     return <div className="p-4">ユーザー情報を読み込み中...</div>;
   }
 
-  if (!advisorKey) {
+  if (!userKey) {
     return (
       <div className="p-4">
         ユーザー名が未設定です。
@@ -574,8 +443,8 @@ export default function FormationPage() {
     <main className="p-4 space-y-4">
       <h1 className="text-xl font-bold">編成作成</h1>
 
-      <div className="text-sm text-gray-600 mb-1">
-        編成者(ログイン中): <strong>{advisorKey}</strong>{" "}
+      <div className="text-sm text-gray-600">
+        ユーザー: <strong>{userKey}</strong>{" "}
         <button
           className="ml-2 underline"
           onClick={() => {
@@ -589,7 +458,7 @@ export default function FormationPage() {
         </button>
       </div>
 
-      {/* 共通メニュー */}
+      {/* メニュー */}
       <div className="mb-2 flex gap-4 text-sm">
         <a href="/" className="text-blue-600 underline">
           ホーム
@@ -605,56 +474,6 @@ export default function FormationPage() {
         </a>
       </div>
 
-      {/* 相談者選択 */}
-      <div className="flex flex-wrap items-center gap-3 text-sm mb-2">
-        <div className="flex items-center gap-2">
-          <span>相談者:</span>
-          <select
-            className="border rounded px-2 py-1"
-            value={ownerKey}
-            onChange={(e) => setOwnerKey(e.target.value)}
-          >
-            {ownerList.length === 0 && <option value="">(相談者なし)</option>}
-            {ownerList.map((o) => (
-              <option key={o} value={o}>
-                {o}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {ownerKey && (
-          <div className="flex items-center gap-2">
-            <span>編成者:</span>
-            <div className="flex flex-wrap gap-1">
-              {advisorList.map((adv) => (
-                <button
-                  key={adv}
-                  type="button"
-                  className={`px-3 py-1 rounded border text-xs ${
-                    selectedAdvisor === adv
-                      ? "bg-blue-500 text-white border-blue-500"
-                      : "bg-white text-gray-700 border-gray-300"
-                  }`}
-                  onClick={() => {
-                    setSelectedAdvisor(adv);
-                    const labels = labelMap[adv] && labelMap[adv].length > 0
-                      ? labelMap[adv]
-                      : ["編成1"];
-                    setKnownLabels(labels);
-                    if (labels.length > 0) {
-                      loadFormation(ownerKey, adv, labels[0]);
-                    }
-                  }}
-                >
-                  {adv === advisorKey ? `${adv}（自分）` : adv}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-
       {/* 編成タブ（＋ボタン付き） */}
       <div className="flex items-center gap-2 mb-2">
         {knownLabels.map((label) => (
@@ -666,11 +485,7 @@ export default function FormationPage() {
                 ? "bg-blue-500 text-white border-blue-500"
                 : "bg-white text-gray-700 border-gray-300"
             }`}
-            onClick={() =>
-              ownerKey &&
-              selectedAdvisor &&
-              loadFormation(ownerKey, selectedAdvisor, label)
-            }
+            onClick={() => loadFormation(label)}
           >
             {label}
           </button>
@@ -680,17 +495,10 @@ export default function FormationPage() {
           className="px-3 py-1 rounded border text-sm bg-white text-blue-600 border-blue-400"
           onClick={handleAddFormation}
           title="編成を追加"
-          disabled={!ownerKey || !isMyAdvisorView}
         >
           ＋
         </button>
       </div>
-
-      {ownerKey && !isMyAdvisorView && (
-        <p className="text-xs text-red-500">
-          ※ 他の編成者の編成を閲覧中です。保存・追加は自分の編成者タブに切り替えてから行ってください。
-        </p>
-      )}
 
       {formationLoading && (
         <div className="text-sm text-gray-500">編成読み込み中...</div>
@@ -708,7 +516,6 @@ export default function FormationPage() {
             placeholder="例: 信長を軸にお願いします！"
             value={requestcomment}
             onChange={(e) => setRequestcomment(e.target.value)}
-            disabled={!isMyAdvisorView}
           />
         </div>
         <div>
@@ -721,31 +528,25 @@ export default function FormationPage() {
             placeholder="例: 武田家中心に組んでみました。"
             value={answercomment}
             onChange={(e) => setAnswercomment(e.target.value)}
-            disabled={!isMyAdvisorView}
           />
         </div>
       </div>
 
       <p className="text-sm text-gray-600">
-        ・相談者が所持している武将だけが選択肢に出ます。
+        ・所持している武将だけが選択肢に出ます。
         <br />
-        ・伝承戦法は、「相談者が所持している戦法」＋「相談者が伝承武将を所持している戦法」が選べます。
+        ・伝承戦法は、「所持している戦法」＋「伝承者を所持している戦法」が選べます。
         （所持:カードとして持っている / 伝承可:伝承者を持っている）
       </p>
 
       <button
         onClick={handleSave}
-        disabled={saving || !ownerKey || !isMyAdvisorView}
-        className={`px-4 py-2 rounded ${
-          saving || !ownerKey || !isMyAdvisorView
-            ? "bg-gray-300 text-gray-600"
-            : "bg-blue-500 text-white"
-        }`}
+        disabled={saving}
+        className="bg-blue-500 text-white px-4 py-2 rounded"
       >
         {saving ? "保存中..." : `${currentLabel} を保存`}
       </button>
 
-      {/* 編成スロット */}
       <div className="grid gap-4 md:grid-cols-3 mt-4">
         {POSITIONS.map(({ key, label }) => {
           const slot = slots[key];
@@ -774,10 +575,7 @@ export default function FormationPage() {
                 <select
                   className="border rounded w-full px-2 py-1"
                   value={slot.officerId ?? ""}
-                  onChange={(e) =>
-                    handleChangeOfficer(key, e.target.value)
-                  }
-                  disabled={!isMyAdvisorView}
+                  onChange={(e) => handleChangeOfficer(key, e.target.value)}
                 >
                   <option value="">-- 未選択 --</option>
                   {officers.map((o) => (
@@ -800,10 +598,7 @@ export default function FormationPage() {
                 <select
                   className="border rounded w-full px-2 py-1"
                   value={slot.inherit1Id ?? ""}
-                  onChange={(e) =>
-                    handleChangeSkill(key, 1, e.target.value)
-                  }
-                  disabled={!isMyAdvisorView}
+                  onChange={(e) => handleChangeSkill(key, 1, e.target.value)}
                 >
                   <option value="">-- なし --</option>
                   {skills.map((s) => (
@@ -831,10 +626,7 @@ export default function FormationPage() {
                 <select
                   className="border rounded w-full px-2 py-1"
                   value={slot.inherit2Id ?? ""}
-                  onChange={(e) =>
-                    handleChangeSkill(key, 2, e.target.value)
-                  }
-                  disabled={!isMyAdvisorView}
+                  onChange={(e) => handleChangeSkill(key, 2, e.target.value)}
                 >
                   <option value="">-- なし --</option>
                   {skills.map((s) => (
@@ -879,10 +671,8 @@ export default function FormationPage() {
               )}
               <div>
                 状態:{" "}
-                {[
-                  detailSkill.isOwned ? "所持" : null,
-                  detailSkill.isInheritable ? "伝承可" : null,
-                ]
+                {[detailSkill.isOwned ? "所持" : null,
+                detailSkill.isInheritable ? "伝承可" : null]
                   .filter(Boolean)
                   .join(" / ") || "-"}
               </div>

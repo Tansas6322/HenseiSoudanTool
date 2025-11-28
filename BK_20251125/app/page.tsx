@@ -67,11 +67,10 @@ export default function Home() {
           <h2 className="text-base font-semibold mb-2">使い方（ざっくり）</h2>
           <ol className="list-decimal pl-5 text-sm space-y-1 text-gray-700">
             <li>依頼者が「ログイン」して、自分のユーザー名を登録する。</li>
-            <li>「所持武将登録」と「所持戦法登録」で所持状況を登録する。</li>
-            <li>回答者（編成者）は、自分のユーザー名でログインする。</li>
+            <li>「武将登録」と「戦法登録」で所持状況を登録する。</li>
+            <li>回答者は、依頼者のユーザー名でログインしなおす。</li>
             <li>
-              「編成作成」で<span className="font-semibold">相談者（依頼者）</span>
-              を選択し、その人の所持状況を見ながら編成を作る。
+              「編成作成」から、そのユーザーの所持状況を見ながら編成を作る。
             </li>
           </ol>
         </section>
@@ -110,7 +109,7 @@ export default function Home() {
             >
               <span className="font-semibold mb-1">所持戦法登録</span>
               <span className="text-xs text-gray-600">
-                伝承に使える戦法を登録します（固有戦法は武将情報から自動で参照されます）。
+                ★伝承用戦法を登録します（固有戦法は自動で参照されます）。
               </span>
             </Link>
           </div>
@@ -120,9 +119,7 @@ export default function Home() {
         <section className="bg-white border rounded-lg p-4">
           <h2 className="text-base font-semibold mb-2">回答者向けメニュー</h2>
           <p className="text-xs text-gray-600 mb-3">
-            相談を受けるときは、
-            <span className="font-semibold">自分のユーザー名でログイン</span>
-            したうえで、「編成作成」画面で相談者のユーザーを選択して編成を作成します。
+            相談を受けるときは、依頼者のユーザー名でログインしなおしてから編成を作成します。
           </p>
 
           <div className="grid gap-3 md:grid-cols-2 text-sm">
@@ -130,10 +127,9 @@ export default function Home() {
               href="/login"
               className="border rounded-lg p-3 hover:bg-green-50 flex flex-col"
             >
-              <span className="font-semibold mb-1">編成者としてログイン</span>
+              <span className="font-semibold mb-1">依頼者のユーザーでログイン</span>
               <span className="text-xs text-gray-600">
-                自分のユーザー名でログインします。
-                作成した編成には「編成者」としてあなたの名前が保存されます。
+                相談相手のユーザー名を指定してログインします。
               </span>
             </Link>
 
@@ -143,9 +139,8 @@ export default function Home() {
             >
               <span className="font-semibold mb-1">編成作成</span>
               <span className="text-xs text-gray-600">
-                画面上部の「相談者」から依頼者のユーザー名を選び、
-                その人の所持武将・戦法をもとに編成1〜編成5を作成します。
-                編成ごとに依頼者コメント・回答者コメントも記録できます。
+                所持武将・戦法をもとに、編成1〜編成5を作成します。
+                戦法の詳細もここから確認できます。
               </span>
             </Link>
           </div>
@@ -157,9 +152,6 @@ export default function Home() {
             ※ ユーザー名はゲーム内の名前など、連盟内で誰かわかるものを推奨します。
           </p>
           <p>※ データは Supabase 上に保存され、連盟メンバーで共有されます。</p>
-          <p>
-            ※ 編成には「相談者」と「編成者」の両方が記録されるため、誰がどの編成を作ったか後から確認できます。
-          </p>
         </footer>
       </div>
     </main>
