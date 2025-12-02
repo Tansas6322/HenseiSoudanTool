@@ -66,7 +66,7 @@ export default function MySkillsPage() {
           rank
         `
         )
-        .not("inherit1_name", "is", null)  
+        .not("inherit1_name", "is", null)
         .order("name", { ascending: true });
 
       if (skillsError) {
@@ -131,22 +131,41 @@ export default function MySkillsPage() {
     setSaving(false);
   };
 
-  // 表示分岐
-  if (!ready) return <div className="p-4">ユーザー情報を読み込み中...</div>;
-
-  if (!userKey) {
+  // 早期リターン系：ダークモード対応
+  if (!ready) {
     return (
-      <div className="p-4">
-        ユーザー名が未設定です。
-        <a href="/login" className="text-blue-500 underline">
-          ログイン
-        </a>
-        してください。
-      </div>
+      <main className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900">
+        <div className="text-gray-600 dark:text-gray-300">
+          ユーザー情報を読み込み中...
+        </div>
+      </main>
     );
   }
 
-  if (loading) return <div className="p-4">読み込み中...</div>;
+  if (!userKey) {
+    return (
+      <main className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900">
+        <div className="p-4 text-gray-800 dark:text-gray-100">
+          ユーザー名が未設定です。
+          <a
+            href="/login"
+            className="text-blue-600 dark:text-blue-400 underline ml-1"
+          >
+            ログイン
+          </a>
+          してください。
+        </div>
+      </main>
+    );
+  }
+
+  if (loading) {
+    return (
+      <main className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900">
+        <div className="text-gray-600 dark:text-gray-300">読み込み中...</div>
+      </main>
+    );
+  }
 
   // フィルタ処理
   const filteredSkills = skills.filter((s) => {
@@ -204,13 +223,14 @@ export default function MySkillsPage() {
   const closeDetail = () => setDetailSkill(null);
 
   return (
-    <main className="p-4">
+    <main className="min-h-screen p-4 bg-slate-50 dark:bg-slate-900 text-gray-900 dark:text-gray-100">
       <h1 className="text-xl font-bold mb-2">所持戦法登録</h1>
 
-      <div className="mb-4 text-sm text-gray-600">
-        ユーザー: <strong>{userKey}</strong>{" "}
+      <div className="mb-4 text-sm text-gray-600 dark:text-gray-300">
+        ユーザー:{" "}
+        <strong className="text-gray-900 dark:text-gray-100">{userKey}</strong>{" "}
         <button
-          className="ml-2 underline"
+          className="ml-2 underline text-blue-600 dark:text-blue-400"
           onClick={() => {
             clearUserKey();
             window.location.href = "/login";
@@ -222,16 +242,25 @@ export default function MySkillsPage() {
 
       {/* 共通メニュー */}
       <div className="mb-4 flex gap-4 text-sm">
-        <a href="/" className="text-blue-600 underline">
+        <a href="/" className="text-blue-600 dark:text-blue-400 underline">
           ホーム
         </a>
-        <a href="/my/officers" className="text-blue-600 underline">
+        <a
+          href="/my/officers"
+          className="text-blue-600 dark:text-blue-400 underline"
+        >
           武将登録
         </a>
-        <a href="/my/skills" className="text-blue-600 underline">
+        <a
+          href="/my/skills"
+          className="text-blue-600 dark:text-blue-400 underline"
+        >
           戦法登録
         </a>
-        <a href="/formation" className="text-blue-600 underline">
+        <a
+          href="/formation"
+          className="text-blue-600 dark:text-blue-400 underline"
+        >
           編成作成
         </a>
       </div>
@@ -239,7 +268,7 @@ export default function MySkillsPage() {
       <button
         onClick={handleSave}
         disabled={saving}
-        className="bg-blue-500 text-white px-4 py-2 rounded mb-4"
+        className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded mb-4 disabled:opacity-60 disabled:cursor-not-allowed"
       >
         {saving ? "保存中..." : "所持状況を保存"}
       </button>
@@ -249,7 +278,7 @@ export default function MySkillsPage() {
         <div className="flex items-center gap-1">
           <span>種類:</span>
           <select
-            className="border rounded px-2 py-1"
+            className="border border-gray-300 dark:border-gray-600 rounded px-2 py-1 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
             value={filterCategory}
             onChange={(e) => setFilterCategory(e.target.value)}
           >
@@ -265,7 +294,7 @@ export default function MySkillsPage() {
         <div className="flex items-center gap-1">
           <span>ランク:</span>
           <select
-            className="border rounded px-2 py-1"
+            className="border border-gray-300 dark:border-gray-600 rounded px-2 py-1 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
             value={filterRank}
             onChange={(e) => setFilterRank(e.target.value)}
           >
@@ -280,7 +309,7 @@ export default function MySkillsPage() {
         <div className="flex items-center gap-1">
           <span>検索:</span>
           <input
-            className="border rounded px-2 py-1"
+            className="border border-gray-300 dark:border-gray-600 rounded px-2 py-1 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500"
             placeholder="戦法名"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -290,7 +319,7 @@ export default function MySkillsPage() {
         <div className="flex items-center gap-1">
           <span>ソート:</span>
           <select
-            className="border rounded px-2 py-1"
+            className="border border-gray-300 dark:border-gray-600 rounded px-2 py-1 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
             value={sortType}
             onChange={(e) => setSortType(e.target.value)}
           >
@@ -305,18 +334,18 @@ export default function MySkillsPage() {
         <button
           type="button"
           onClick={handleSelectFiltered}
-          className="px-3 py-1 rounded border bg-white hover:bg-blue-50"
+          className="px-3 py-1 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 hover:bg-blue-50 dark:hover:bg-blue-900/40 text-gray-800 dark:text-gray-100"
         >
           表示中の戦法をすべて所持にする
         </button>
         <button
           type="button"
           onClick={handleClearFiltered}
-          className="px-3 py-1 rounded border bg-white hover:bg-gray-50"
+          className="px-3 py-1 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-100"
         >
           表示中の戦法をすべて未所持にする
         </button>
-        <span className="text-gray-500">
+        <span className="text-gray-500 dark:text-gray-400">
           （フィルター・検索で絞り込んだ結果にだけ適用されます）
         </span>
       </div>
@@ -332,7 +361,9 @@ export default function MySkillsPage() {
             <div
               key={s.id}
               className={`border rounded p-2 cursor-pointer select-none ${
-                owned ? "bg-blue-100 border-blue-400" : "bg-white"
+                owned
+                  ? "bg-blue-100 dark:bg-blue-900/40 border-blue-400 dark:border-blue-500"
+                  : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700"
               }`}
               onClick={() => toggleOwned(s.id)}
             >
@@ -344,19 +375,18 @@ export default function MySkillsPage() {
                   height={48}
                   className="rounded object-cover"
                   onError={(e) => {
-                    (e.currentTarget as HTMLImageElement).src =
-                      "/no-image.png";
+                    (e.currentTarget as HTMLImageElement).src = "/no-image.png";
                   }}
                 />
                 <div className="flex-1">
                   <div className="font-bold">{s.name}</div>
-                  <div className="text-xs text-gray-700">
+                  <div className="text-xs text-gray-700 dark:text-gray-200">
                     種類: {s.category ?? "-"}
                   </div>
-                  <div className="text-xs text-gray-700">
+                  <div className="text-xs text-gray-700 dark:text-gray-200">
                     ランク: <span className="font-semibold">{rankLabel}</span>
                   </div>
-                  <div className="text-xs text-gray-600">
+                  <div className="text-xs text-gray-600 dark:text-gray-300">
                     発動率: {s.trigger_rate ?? "-"}%
                   </div>
                 </div>
@@ -368,7 +398,7 @@ export default function MySkillsPage() {
                 </span>
                 <button
                   type="button"
-                  className="text-xs px-2 py-1 border rounded bg-white/70 hover:bg-blue-50"
+                  className="text-xs px-2 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white/70 dark:bg-gray-800 hover:bg-blue-50 dark:hover:bg-blue-900/40 text-gray-800 dark:text-gray-100"
                   onClick={(e) => {
                     e.stopPropagation(); // 所持切替には反応させない
                     setDetailSkill(s);
@@ -389,7 +419,7 @@ export default function MySkillsPage() {
           onClick={closeDetail}
         >
           <div
-            className="bg-white rounded-lg shadow-lg p-4 w-[90vw] max-w-md max-h-[80vh] overflow-y-auto"
+            className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 w-[90vw] max-w-md max-h-[80vh] overflow-y-auto text-gray-900 dark:text-gray-100"
             onClick={(e) => e.stopPropagation()}
           >
             <h2 className="text-lg font-bold mb-2">{detailSkill.name}</h2>
@@ -413,7 +443,7 @@ export default function MySkillsPage() {
 
             <div className="text-sm">
               <div className="font-semibold mb-1">説明:</div>
-              <p className="text-xs text-gray-800 whitespace-pre-wrap">
+              <p className="text-xs text-gray-800 dark:text-gray-100 whitespace-pre-wrap">
                 {detailSkill.description || "（説明未登録）"}
               </p>
             </div>
@@ -421,7 +451,7 @@ export default function MySkillsPage() {
             <div className="mt-4 text-right">
               <button
                 type="button"
-                className="px-3 py-1 text-sm border rounded bg-gray-100 hover:bg-gray-200"
+                className="px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-100"
                 onClick={closeDetail}
               >
                 閉じる

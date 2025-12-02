@@ -44,7 +44,6 @@ const EMPTY_SLOTS: Record<SlotPosition, SlotState> = {
   sub2: { officerId: null, inherit1Id: null, inherit2Id: null },
 };
 
-// 編成の最大数
 const MAX_FORMATIONS = 5;
 
 export default function FormationPage() {
@@ -55,9 +54,9 @@ export default function FormationPage() {
   const [ownerList, setOwnerList] = useState<string[]>([]);
   const [ownerKey, setOwnerKey] = useState<string>("");
 
-  // 編成者タブ（案2）
+  // 編成者タブ
   const [advisorList, setAdvisorList] = useState<string[]>([]);
-  const [selectedAdvisor, setSelectedAdvisor] = useState<string>(""); // 表示中の編成者
+  const [selectedAdvisor, setSelectedAdvisor] = useState<string>("");
 
   // advisorKeyごとの編成ラベル一覧
   const [labelMap, setLabelMap] = useState<Record<string, string[]>>({});
@@ -77,8 +76,8 @@ export default function FormationPage() {
   const [saving, setSaving] = useState(false);
 
   // コメント
-  const [requestcomment, setRequestcomment] = useState<string>(""); // 依頼者コメント
-  const [answercomment, setAnswercomment] = useState<string>(""); // 回答者コメント
+  const [requestcomment, setRequestcomment] = useState<string>("");
+  const [answercomment, setAnswercomment] = useState<string>("");
 
   // 戦法詳細モーダル
   const [detailSkill, setDetailSkill] = useState<Skill | null>(null);
@@ -114,7 +113,6 @@ export default function FormationPage() {
 
       setOwnerList(owners);
 
-      // デフォルトで最初の相談者を選択
       if (!ownerKey && owners.length > 0) {
         setOwnerKey(owners[0]);
       }
@@ -188,13 +186,12 @@ export default function FormationPage() {
         (userSkills || []).map((s) => s.skill_id as number)
       );
 
-      // 3. skills 全体（inherit1_name が NOT NULL = 伝承あり戦法だけ）
+      // 3. skills 全体（固有のみも含む）
       const { data: skillsData, error: sError } = await supabase
         .from("skills")
         .select(
           "id, name, category, description, inherit1_name, inherit2_name, trigger_rate"
         )
-        .not("inherit1_name", "is", null)
         .order("name", { ascending: true });
 
       if (sError) {
@@ -203,33 +200,31 @@ export default function FormationPage() {
         return;
       }
 
-      const usableSkills: Skill[] = (skillsData || [])
-        .map((row: any) => {
-          const isOwned = ownedSkillIds.has(row.id);
-          const isInheritable =
-            (row.inherit1_name &&
-              ownedOfficerNames.includes(row.inherit1_name)) ||
-            (row.inherit2_name &&
-              ownedOfficerNames.includes(row.inherit2_name));
+      const allSkills: Skill[] = (skillsData || []).map((row: any) => {
+        const isOwned = ownedSkillIds.has(row.id);
+        const isInheritable =
+          (row.inherit1_name &&
+            ownedOfficerNames.includes(row.inherit1_name)) ||
+          (row.inherit2_name &&
+            ownedOfficerNames.includes(row.inherit2_name));
 
-          return {
-            id: row.id,
-            name: row.name,
-            category: row.category,
-            description: row.description,
-            inherit1_name: row.inherit1_name,
-            inherit2_name: row.inherit2_name,
-            trigger_rate: row.trigger_rate,
-            isOwned,
-            isInheritable,
-          } as Skill;
-        })
-        // 所持 or 伝承者を持っているものだけ候補にする
-        .filter((s) => s.isOwned || s.isInheritable);
+        return {
+          id: row.id,
+          name: row.name,
+          category: row.category,
+          description: row.description,
+          inherit1_name: row.inherit1_name,
+          inherit2_name: row.inherit2_name,
+          trigger_rate: row.trigger_rate,
+          isOwned,
+          isInheritable,
+        } as Skill;
+      });
 
-      setSkills(usableSkills);
+      // ★ skills は「固有のみ」も含めて全部持つ
+      setSkills(allSkills);
 
-      // 4. この相談者の編成一覧を取得（owner_key 単位）
+      // 4. この相談者の編成一覧（owner_key 単位）
       const { data: formationRows, error: formError } = await supabase
         .from("formations")
         .select("label, advisor_key")
@@ -250,7 +245,6 @@ export default function FormationPage() {
         map[adv].push(r.label as string);
       });
 
-      // ラベルを編成1, 編成2,... の順にソート
       Object.keys(map).forEach((adv) => {
         const labels = Array.from(new Set(map[adv]));
         labels.sort((a, b) => {
@@ -264,7 +258,6 @@ export default function FormationPage() {
         map[adv] = labels;
       });
 
-      // この相談者に対して編成を持っている編成者一覧 + 自分を必ず含める
       const advisors = Array.from(
         new Set([...Object.keys(map), advisorKey])
       ).sort((a, b) => a.localeCompare(b, "ja"));
@@ -272,7 +265,6 @@ export default function FormationPage() {
       setLabelMap(map);
       setAdvisorList(advisors);
 
-      // 表示中の編成者を決める（優先：今選択中 > 自分）
       const initialAdvisor = advisors.includes(selectedAdvisor)
         ? selectedAdvisor
         : advisorKey;
@@ -287,7 +279,6 @@ export default function FormationPage() {
       setKnownLabels(labelsForInitial);
       setLoading(false);
 
-      // 最初の編成をロード
       if (labelsForInitial.length > 0) {
         await loadFormation(ownerKey, initialAdvisor, labelsForInitial[0]);
       }
@@ -297,7 +288,6 @@ export default function FormationPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, advisorKey, ownerKey]);
 
-  // 指定ラベルの編成をロード
   const loadFormation = async (
     ownerKeyParam: string,
     advisorKeyParam: string,
@@ -365,7 +355,6 @@ export default function FormationPage() {
     setFormationLoading(false);
   };
 
-  // ＋ボタンで新しい編成タブを追加（自分のタブでのみ）
   const handleAddFormation = () => {
     if (!ownerKey) {
       alert("先に相談者を選択してください");
@@ -405,7 +394,6 @@ export default function FormationPage() {
     setKnownLabels(newMyLabels);
     setSelectedAdvisor(advisorKey);
 
-    // 新しい編成（まだDBには無いので空の状態）をロード
     loadFormation(ownerKey, advisorKey, newLabel);
   };
 
@@ -451,12 +439,11 @@ export default function FormationPage() {
 
     setSaving(true);
 
-    // formations を upsert（相談者×編成者×ラベル）
     const formationRow = {
       id: formationId ?? undefined,
       owner_key: ownerKey,
       advisor_key: advisorKey,
-      user_key: ownerKey,    
+      user_key: ownerKey, // 互換用：従来の user_key も相談者で埋める
       label: currentLabel,
       request_comment: requestcomment,
       answer_comment: answercomment,
@@ -483,7 +470,6 @@ export default function FormationPage() {
       return;
     }
 
-    // 既存スロット削除
     const { error: delError } = await supabase
       .from("formation_slots")
       .delete()
@@ -495,7 +481,6 @@ export default function FormationPage() {
       return;
     }
 
-    // スロット挿入
     const insertRows = POSITIONS.flatMap(({ key }) => {
       const s = slots[key];
       if (!s.officerId) return [];
@@ -529,7 +514,6 @@ export default function FormationPage() {
     alert(`${currentLabel} を保存しました！`);
     setSaving(false);
 
-    // ラベルマップも更新（自分のラベル一覧に currentLabel を必ず含める）
     setLabelMap((prev) => {
       const myLabels = new Set(prev[advisorKey] ?? []);
       myLabels.add(currentLabel);
@@ -549,7 +533,6 @@ export default function FormationPage() {
     });
   };
 
-  // 表示分岐
   if (!ready) {
     return <div className="p-4">ユーザー情報を読み込み中...</div>;
   }
@@ -569,6 +552,13 @@ export default function FormationPage() {
   if (loading) {
     return <div className="p-4">マスタデータ読み込み中...</div>;
   }
+
+  // セレクトに出す戦法：伝承可能かつ「所持 or 伝承者あり」のみ
+  const selectableSkills = skills.filter((s) => {
+    const hasInherit = !!(s.inherit1_name || s.inherit2_name);
+    const usable = s.isOwned || s.isInheritable;
+    return hasInherit && usable;
+  });
 
   return (
     <main className="p-4 space-y-4">
@@ -638,9 +628,10 @@ export default function FormationPage() {
                   }`}
                   onClick={() => {
                     setSelectedAdvisor(adv);
-                    const labels = labelMap[adv] && labelMap[adv].length > 0
-                      ? labelMap[adv]
-                      : ["編成1"];
+                    const labels =
+                      labelMap[adv] && labelMap[adv].length > 0
+                        ? labelMap[adv]
+                        : ["編成1"];
                     setKnownLabels(labels);
                     if (labels.length > 0) {
                       loadFormation(ownerKey, adv, labels[0]);
@@ -655,7 +646,7 @@ export default function FormationPage() {
         )}
       </div>
 
-      {/* 編成タブ（＋ボタン付き） */}
+      {/* 編成タブ */}
       <div className="flex items-center gap-2 mb-2">
         {knownLabels.map((label) => (
           <button
@@ -696,7 +687,7 @@ export default function FormationPage() {
         <div className="text-sm text-gray-500">編成読み込み中...</div>
       )}
 
-      {/* コメントエリア */}
+      {/* コメント */}
       <div className="grid gap-4 md:grid-cols-2">
         <div>
           <label className="block text-sm font-semibold mb-1">
@@ -730,7 +721,7 @@ export default function FormationPage() {
         ・相談者が所持している武将だけが選択肢に出ます。
         <br />
         ・伝承戦法は、「相談者が所持している戦法」＋「相談者が伝承武将を所持している戦法」が選べます。
-        （所持:カードとして持っている / 伝承可:伝承者を持っている）
+        （固有のみの戦法も詳細から内容を確認できます）
       </p>
 
       <button
@@ -753,6 +744,12 @@ export default function FormationPage() {
           const inheritSkill1 = skills.find((s) => s.id === slot.inherit1Id);
           const inheritSkill2 = skills.find((s) => s.id === slot.inherit2Id);
 
+          // 固有戦法（固有のみも含む）を skills から検索
+          const inherentSkill =
+            officer?.inherent_skill_name
+              ? skills.find((s) => s.name === officer.inherent_skill_name)
+              : undefined;
+
           const renderSkillLabel = (s: Skill) => {
             const flags = [
               s.isOwned ? "所持" : null,
@@ -761,11 +758,13 @@ export default function FormationPage() {
               .filter(Boolean)
               .join("/");
 
-            return `${s.name}（${s.category ?? "種類不明"}・${flags}）`;
+            return `${s.name}（${s.category ?? "種類不明"}・${
+              flags || "対象外"
+            }）`;
           };
 
           return (
-            <div key={key} className="border rounded p-3 space-y-2">
+            <div key={key} className="border rounded p-3 space-y-2 bg-white">
               <h2 className="font-bold mb-1">{label}</h2>
 
               {/* 武将選択 */}
@@ -788,10 +787,21 @@ export default function FormationPage() {
                 </select>
               </div>
 
-              {/* 固有戦法（表示のみ） */}
-              <div className="text-sm">
-                <span className="font-semibold">固有戦法: </span>
-                {officer?.inherent_skill_name || "-"}
+              {/* 固有戦法（詳細ボタン付き） */}
+              <div className="text-sm flex items-center justify-between">
+                <div>
+                  <span className="font-semibold">固有戦法: </span>
+                  {officer?.inherent_skill_name || "-"}
+                </div>
+                {inherentSkill && (
+                  <button
+                    type="button"
+                    className="ml-2 text-xs px-2 py-1 border rounded bg-white hover:bg-blue-50"
+                    onClick={() => setDetailSkill(inherentSkill)}
+                  >
+                    詳細
+                  </button>
+                )}
               </div>
 
               {/* 伝承戦法1 */}
@@ -806,7 +816,7 @@ export default function FormationPage() {
                   disabled={!isMyAdvisorView}
                 >
                   <option value="">-- なし --</option>
-                  {skills.map((s) => (
+                  {selectableSkills.map((s) => (
                     <option key={s.id} value={s.id}>
                       {renderSkillLabel(s)}
                     </option>
@@ -837,7 +847,7 @@ export default function FormationPage() {
                   disabled={!isMyAdvisorView}
                 >
                   <option value="">-- なし --</option>
-                  {skills.map((s) => (
+                  {selectableSkills.map((s) => (
                     <option key={s.id} value={s.id}>
                       {renderSkillLabel(s)}
                     </option>
@@ -860,7 +870,7 @@ export default function FormationPage() {
         })}
       </div>
 
-      {/* 戦法詳細モーダル */}
+      {/* 戦法詳細モーダル（固有のみも含めて全てここで表示） */}
       {detailSkill && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
