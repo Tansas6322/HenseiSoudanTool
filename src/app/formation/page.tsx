@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from "react"; 
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
@@ -47,7 +48,7 @@ const EMPTY_SLOTS: Record<SlotPosition, SlotState> = {
 
 const MAX_FORMATIONS = 5;
 
-export default function FormationPage() {
+function FormationPageInner() {
   const { userKey, ready, clearUserKey } = useUserKey();
   const advisorKey = userKey; // ログインユーザー = 編成者
   const searchParams = useSearchParams();
@@ -967,5 +968,13 @@ export default function FormationPage() {
         </div>
       )}
     </main>
+  );
+}
+
+export default function FormationPage() {
+  return (
+    <Suspense fallback={<div className="p-4">URL 情報を読み込み中...</div>}>
+      <FormationPageInner />
+    </Suspense>
   );
 }
