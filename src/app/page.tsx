@@ -43,7 +43,7 @@ export default function Home() {
               )}
             </div>
             <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-              依頼者としても編成者としても、ここでユーザー名を切り替えてから各画面に進んでください。
+              ログイン・ユーザー登録してから各画面に進んでください。
             </p>
           </div>
           <div className="flex gap-2">
@@ -69,20 +69,31 @@ export default function Home() {
           </div>
         </section>
 
-        {/* 使い方（ざっくりフロー） */}
+        {/* 使い方（依頼者向けざっくりフロー） */}
         <section className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
           <h2 className="text-base font-semibold mb-2 text-gray-900 dark:text-gray-100">
-            使い方（ざっくり）
+            使い方（依頼者）
           </h2>
           <ol className="list-decimal pl-5 text-sm space-y-1 text-gray-700 dark:text-gray-200">
-            <li>依頼者が自分のユーザー名でログインする。</li>
+            <li>自分のユーザー名でログインする。</li>
             <li>「所持武将登録」と「所持戦法登録」で所持状況を登録する。</li>
-            <li>編成者も自分のユーザー名でログインする。</li>
+            <li>必要に応じて「編成作成」にコメントを記載して登録する。</li>
+            <li>Discordの編成相談チャネルに登録したことを記載し、相談する</li>
+            <li>「自分宛の編成を見る」から編成を確認する</li>
+          </ol>
+        </section>
+        
+        {/* 使い方（編成者ざっくりフロー） */}
+        <section className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+          <h2 className="text-base font-semibold mb-2 text-gray-900 dark:text-gray-100">
+            使い方（編成者）
+          </h2>
+          <ol className="list-decimal pl-5 text-sm space-y-1 text-gray-700 dark:text-gray-200">
+            <li>自分のユーザー名でログインする。</li>
             <li>
-              編成者は「編成作成」で
-              <span className="font-semibold">相談者（依頼者）</span>
-              を選択し、その人の所持状況を見ながら編成を作る。
+              「編成作成」で依頼者を選択し、その人の所持状況を見ながら編成を作る。
             </li>
+            <li>依頼者に編成を作成したことを伝え、確認してもらう</li>
           </ol>
         </section>
 
@@ -115,21 +126,30 @@ export default function Home() {
                 所持戦法登録
               </span>
               <span className="text-xs text-gray-600 dark:text-gray-300">
-                伝承に使える戦法を登録します（固有戦法は武将情報から自動で参照されます）。
+                所持している戦法を登録します。
               </span>
             </Link>
+    {/* ★ 追加：自分宛の編成を見る */}
+    <Link
+      href="/formation?owner=me"
+              className="border border-gray-200 dark:border-gray-700 rounded-lg p-3 bg-white dark:bg-gray-800 hover:bg-blue-50 dark:hover:bg-blue-900/40 flex flex-col transition-colors"
+    >
+      <span className="font-semibold mb-1">自分宛の編成を見る</span>
+              <span className="text-xs text-gray-600 dark:text-gray-300">
+        編成者に作ってもらった自分の編成を一覧で確認します。
+        （上部の現在のユーザーで自分の名前を選んでから開いてください）
+      </span>
+    </Link>
           </div>
         </section>
 
-        {/* 回答者（編成者）向けメニュー */}
+        {/* 編成者向けメニュー */}
         <section className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
           <h2 className="text-base font-semibold mb-2 text-gray-900 dark:text-gray-100">
-            回答者向けメニュー
+            編成者向けメニュー
           </h2>
           <p className="text-xs text-gray-600 dark:text-gray-300 mb-3">
-            上部の「現在のユーザー」で
-            <span className="font-semibold">自分（編成者）のユーザー名</span>
-            を選択したうえで、「編成作成」から相談者の編成を作成します。
+            上部の「現在のユーザー」で自分のユーザー名を選択したうえで、「編成作成」から依頼者の編成を作成します。
           </p>
 
           <div className="grid gap-3 md:grid-cols-1 text-sm">
@@ -141,9 +161,9 @@ export default function Home() {
                 編成作成
               </span>
               <span className="text-xs text-gray-600 dark:text-gray-300">
-                画面上部の「相談者」から依頼者のユーザー名を選び、
-                その人の所持武将・戦法をもとに編成1〜編成5を作成します。
-                編成ごとに依頼者コメント・回答者コメントも記録できます。
+                画面上部の「依頼者」から依頼者のユーザー名を選び、
+                その人の所持武将・戦法をもとに編成1～編成5を作成します。
+                編成ごとに依頼者コメント・編成者コメントも記録できます。
               </span>
             </Link>
           </div>
@@ -156,7 +176,7 @@ export default function Home() {
           </p>
           <p>※ データは Supabase 上に保存され、一門メンバーで共有されます。</p>
           <p>
-            ※ 編成には「相談者」と「編成者」の両方が記録されるため、誰がどの編成を作ったか後から確認できます。
+            ※ 編成には「依頼者」と「編成者」の両方が記録されるため、誰がどの編成を作ったか後から確認できます。
           </p>
         </footer>
       </div>

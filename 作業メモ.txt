@@ -12,14 +12,14 @@ https://vercel.com/tansas6322s-projects/hensei-soudan-tool
 Node.jsインストール後に
 
 cmdで
-cd C:\Users\hensei-soudan-app
+cd C:\Users\rnaka\hensei-soudan-app
 npm run dev 
 
 
 
 リリース手順
 1. プロジェクトフォルダに移動
-cd C:\Users\hensei-soudan-app
+cd C:\Users\rnaka\hensei-soudan-app
 2. 変更内容を確認
 git status
 赤いファイルが「変更されたファイル」です。

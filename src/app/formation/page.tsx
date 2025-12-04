@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { useUserKey } from "@/hooks/useUserKey";
 
@@ -49,6 +50,7 @@ const MAX_FORMATIONS = 5;
 export default function FormationPage() {
   const { userKey, ready, clearUserKey } = useUserKey();
   const advisorKey = userKey; // ログインユーザー = 編成者
+  const searchParams = useSearchParams();
 
   // 相談者関連
   const [ownerList, setOwnerList] = useState<string[]>([]);
@@ -113,8 +115,29 @@ export default function FormationPage() {
 
       setOwnerList(owners);
 
-      if (!ownerKey && owners.length > 0) {
-        setOwnerKey(owners[0]);
+      // URLパラメータ owner に応じて初期の相談者を決定
+      const ownerParam = searchParams.get("owner"); // "me" or specific name
+
+      let initialOwner = ownerKey;
+
+      if (!initialOwner && owners.length > 0) {
+        if (ownerParam === "me" && advisorKey && owners.includes(advisorKey)) {
+          // /formation?owner=me かつ ログインユーザーが相談者一覧に含まれる → 自分宛
+          initialOwner = advisorKey;
+        } else if (ownerParam && owners.includes(ownerParam)) {
+          // /formation?owner=xxx で、xxx が相談者一覧に含まれる
+          initialOwner = ownerParam;
+        } else if (advisorKey && owners.includes(advisorKey)) {
+          // パラメータはないが、ログインユーザーも相談者として登録されている
+          initialOwner = advisorKey;
+        } else {
+          // それ以外は先頭をデフォルトに
+          initialOwner = owners[0];
+        }
+      }
+
+      if (initialOwner) {
+        setOwnerKey(initialOwner);
       }
 
       setLoading(false);
@@ -221,7 +244,6 @@ export default function FormationPage() {
         } as Skill;
       });
 
-      // ★ skills は「固有のみ」も含めて全部持つ
       setSkills(allSkills);
 
       // 4. この相談者の編成一覧（owner_key 単位）
@@ -595,54 +617,66 @@ export default function FormationPage() {
         </a>
       </div>
 
-      {/* 相談者選択 */}
-      <div className="flex flex-wrap items-center gap-3 text-sm mb-2">
-        <div className="flex items-center gap-2">
-          <span>相談者:</span>
-          <select
-            className="border rounded px-2 py-1"
-            value={ownerKey}
-            onChange={(e) => setOwnerKey(e.target.value)}
-          >
-            {ownerList.length === 0 && <option value="">(相談者なし)</option>}
-            {ownerList.map((o) => (
-              <option key={o} value={o}>
-                {o}
-              </option>
-            ))}
-          </select>
+      {/* 相談者 & 編成者タブ */}
+      <div className="flex flex-col gap-2 text-sm mb-2">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2">
+            <span>相談者:</span>
+            <select
+              className="border rounded px-2 py-1"
+              value={ownerKey}
+              onChange={(e) => setOwnerKey(e.target.value)}
+            >
+              {ownerList.length === 0 && (
+                <option value="">(相談者なし)</option>
+              )}
+              {ownerList.map((o) => (
+                <option key={o} value={o}>
+                  {o}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {ownerKey && (
+            <div className="flex items-center gap-2">
+              <span>編成者:</span>
+              <div className="flex flex-wrap gap-1">
+                {advisorList.map((adv) => (
+                  <button
+                    key={adv}
+                    type="button"
+                    className={`px-3 py-1 rounded border text-xs ${
+                      selectedAdvisor === adv
+                        ? "bg-blue-500 text-white border-blue-500"
+                        : "bg-white text-gray-700 border-gray-300"
+                    }`}
+                    onClick={() => {
+                      setSelectedAdvisor(adv);
+                      const labels =
+                        labelMap[adv] && labelMap[adv].length > 0
+                          ? labelMap[adv]
+                          : ["編成1"];
+                      setKnownLabels(labels);
+                      if (labels.length > 0) {
+                        loadFormation(ownerKey, adv, labels[0]);
+                      }
+                    }}
+                  >
+                    {adv === advisorKey ? `${adv}（自分）` : adv}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {ownerKey && (
-          <div className="flex items-center gap-2">
-            <span>編成者:</span>
-            <div className="flex flex-wrap gap-1">
-              {advisorList.map((adv) => (
-                <button
-                  key={adv}
-                  type="button"
-                  className={`px-3 py-1 rounded border text-xs ${
-                    selectedAdvisor === adv
-                      ? "bg-blue-500 text-white border-blue-500"
-                      : "bg-white text-gray-700 border-gray-300"
-                  }`}
-                  onClick={() => {
-                    setSelectedAdvisor(adv);
-                    const labels =
-                      labelMap[adv] && labelMap[adv].length > 0
-                        ? labelMap[adv]
-                        : ["編成1"];
-                    setKnownLabels(labels);
-                    if (labels.length > 0) {
-                      loadFormation(ownerKey, adv, labels[0]);
-                    }
-                  }}
-                >
-                  {adv === advisorKey ? `${adv}（自分）` : adv}
-                </button>
-              ))}
-            </div>
-          </div>
+          <p className="text-xs text-gray-600">
+            現在{" "}
+            <span className="font-semibold">{ownerKey}</span>
+            さん宛の編成を表示しています。上の「編成者」から、誰が作成した編成を見るかを選べます。
+          </p>
         )}
       </div>
 
@@ -679,7 +713,7 @@ export default function FormationPage() {
 
       {ownerKey && !isMyAdvisorView && (
         <p className="text-xs text-red-500">
-          ※ 他の編成者の編成を閲覧中です。保存・追加は自分の編成者タブに切り替えてから行ってください。
+          ※ 他の編成者の編成を閲覧中です。保存・追加は自分の編成者タブのみ可能です。
         </p>
       )}
 
@@ -721,7 +755,7 @@ export default function FormationPage() {
         ・相談者が所持している武将だけが選択肢に出ます。
         <br />
         ・伝承戦法は、「相談者が所持している戦法」＋「相談者が伝承武将を所持している戦法」が選べます。
-        （固有のみの戦法も詳細から内容を確認できます）
+        （固有のみの戦法も「固有戦法」の詳細ボタンから内容を確認できます）
       </p>
 
       <button
@@ -744,7 +778,6 @@ export default function FormationPage() {
           const inheritSkill1 = skills.find((s) => s.id === slot.inherit1Id);
           const inheritSkill2 = skills.find((s) => s.id === slot.inherit2Id);
 
-          // 固有戦法（固有のみも含む）を skills から検索
           const inherentSkill =
             officer?.inherent_skill_name
               ? skills.find((s) => s.name === officer.inherent_skill_name)
@@ -764,7 +797,12 @@ export default function FormationPage() {
           };
 
           return (
-            <div key={key} className="border rounded p-3 space-y-2 bg-white">
+            <div
+              key={key}
+              className={`border rounded p-3 space-y-2 bg-white ${
+                !isMyAdvisorView ? "opacity-70" : ""
+              }`}
+            >
               <h2 className="font-bold mb-1">{label}</h2>
 
               {/* 武将選択 */}
@@ -870,7 +908,7 @@ export default function FormationPage() {
         })}
       </div>
 
-      {/* 戦法詳細モーダル（固有のみも含めて全てここで表示） */}
+      {/* 戦法詳細モーダル */}
       {detailSkill && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
