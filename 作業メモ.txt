@@ -38,11 +38,11 @@ https://vercel.com/tansas6322s-projects/hensei-soudan-tool/deploymentsを確認
 
 
 
-
-
-
-
-
+cd C:\Users\rnaka\hensei-soudan-app
+git status
+git add .
+git commit -m "fix formation load and comments"
+git push origin main
 
 
 

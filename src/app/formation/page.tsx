@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense } from "react"; 
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
@@ -48,7 +48,7 @@ const EMPTY_SLOTS: Record<SlotPosition, SlotState> = {
 
 const MAX_FORMATIONS = 5;
 
-// ===== ここからコピー機能用ユーティリティ =====
+/* ========= ここからコピー機能 ========= */
 
 async function copyToClipboard(text: string): Promise<boolean> {
   // navigator.clipboard が使える場合
@@ -62,9 +62,7 @@ async function copyToClipboard(text: string): Promise<boolean> {
   }
 
   // フォールバック（古いブラウザ・非HTTPS環境など）
-  if (typeof document === "undefined") {
-    return false;
-  }
+  if (typeof document === "undefined") return false;
 
   try {
     const ta = document.createElement("textarea");
@@ -85,8 +83,7 @@ async function copyToClipboard(text: string): Promise<boolean> {
 
 type FormatFormationParams = {
   ownerKey: string;
-  advisorKey: string;
-  selectedAdvisor: string;
+  advisorLabel: string;
   label: string;
   slots: Record<SlotPosition, SlotState>;
   officers: Officer[];
@@ -95,21 +92,17 @@ type FormatFormationParams = {
   answercomment: string;
 };
 
-function formatFormationForCopy(params: FormatFormationParams): string {
-  const {
-    ownerKey,
-    advisorKey,
-    selectedAdvisor,
-    label,
-    slots,
-    officers,
-    skills,
-    requestcomment,
-    answercomment,
-  } = params;
-
+function formatFormationForCopy({
+  ownerKey,
+  advisorLabel,
+  label,
+  slots,
+  officers,
+  skills,
+  requestcomment,
+  answercomment,
+}: FormatFormationParams): string {
   const lines: string[] = [];
-  const advisorLabel = selectedAdvisor || advisorKey;
 
   lines.push(`【${ownerKey || "（相談者未選択）"} さん宛 ${label}】`);
   if (advisorLabel) {
@@ -119,6 +112,7 @@ function formatFormationForCopy(params: FormatFormationParams): string {
 
   POSITIONS.forEach(({ key, label: posLabel }) => {
     const slot = slots[key];
+
     const hasSomething =
       slot.officerId !== null ||
       slot.inherit1Id !== null ||
@@ -131,9 +125,7 @@ function formatFormationForCopy(params: FormatFormationParams): string {
     const inheritSkill2 = skills.find((s) => s.id === slot.inherit2Id);
 
     const parts: string[] = [];
-    parts.push(
-      `${posLabel}: ${officer ? officer.name : "（武将未設定）"}`
-    );
+    parts.push(`${posLabel}: ${officer ? officer.name : "（武将未設定）"}`);
 
     if (officer?.inherent_skill_name) {
       parts.push(`固有：${officer.inherent_skill_name}`);
@@ -161,7 +153,7 @@ function formatFormationForCopy(params: FormatFormationParams): string {
   return lines.join("\n");
 }
 
-// ===== ここまでコピー機能用ユーティリティ =====
+/* ========= ここまでコピー機能 ========= */
 
 function FormationPageInner() {
   const { userKey, ready, clearUserKey } = useUserKey();
@@ -405,7 +397,7 @@ function FormationPageInner() {
 
       const initialAdvisor = advisors.includes(selectedAdvisor)
         ? selectedAdvisor
-        : advisorKey;
+        : advisorKey ?? "";
 
       setSelectedAdvisor(initialAdvisor);
 
@@ -677,10 +669,11 @@ function FormationPageInner() {
       return;
     }
 
+    const advisorLabel = selectedAdvisor || advisorKey || "";
+
     const text = formatFormationForCopy({
       ownerKey,
-      advisorKey,
-      selectedAdvisor,
+      advisorLabel,
       label: currentLabel,
       slots,
       officers,
@@ -1068,7 +1061,7 @@ function FormationPageInner() {
       {/* 戦法詳細モーダル */}
       {detailSkill && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+          className="fixed inset-0 z-50 flex items-center justify.center bg-black/40"
           onClick={() => setDetailSkill(null)}
         >
           <div
