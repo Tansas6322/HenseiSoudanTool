@@ -15,7 +15,7 @@ type Officer = {
   // ▼ officersテーブルのカラム
   inherent_skill_name: string | null; // 固有戦法名
   inherent_skill_type: string | null; // 固有戦法の種別（指揮/能動/受動…）
-  inherit_skill_name: string | null; // 伝承戦法名
+  inherit_skill_name: string | null; // 伝授戦法名
   unique_trait: string | null; // 固有特性
   trait凸1: string | null;
   trait凸3: string | null;
@@ -479,7 +479,7 @@ export default function MyOfficersPage() {
           const count = countMap[o.id] ?? 0;
           const owned = count > 0;
 
-          const officerImageSrc = `/officers/${o.id}.png`;
+          const officerImageSrc = `/officers/${o.name}.webp`;
 
           return (
             <div
@@ -591,7 +591,7 @@ export default function MyOfficersPage() {
 
               <div>
                 <div>
-                  <span className="font-semibold">伝承戦法:</span>{" "}
+                  <span className="font-semibold">伝授戦法:</span>{" "}
                   {detailOfficer.inherit_skill_name ?? "-"}
                 </div>
                 {detailOfficer.inherit_skill_name && (

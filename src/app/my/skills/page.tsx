@@ -432,11 +432,11 @@ export default function MySkillsPage() {
 
             <div className="text-sm space-y-2 mb-3">
               <div>
-                <span className="font-semibold">伝承者1:</span>{" "}
+                <span className="font-semibold">伝授者1:</span>{" "}
                 {detailSkill.inherit1_name ?? "-"}
               </div>
               <div>
-                <span className="font-semibold">伝承者2:</span>{" "}
+                <span className="font-semibold">伝授者2:</span>{" "}
                 {detailSkill.inherit2_name ?? "-"}
               </div>
             </div>

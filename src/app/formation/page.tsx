@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense } from "react"; 
+import { Suspense } from "react";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
@@ -47,6 +47,121 @@ const EMPTY_SLOTS: Record<SlotPosition, SlotState> = {
 };
 
 const MAX_FORMATIONS = 5;
+
+// ===== ここからコピー機能用ユーティリティ =====
+
+async function copyToClipboard(text: string): Promise<boolean> {
+  // navigator.clipboard が使える場合
+  if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      // フォールバックへ
+    }
+  }
+
+  // フォールバック（古いブラウザ・非HTTPS環境など）
+  if (typeof document === "undefined") {
+    return false;
+  }
+
+  try {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.style.position = "fixed";
+    ta.style.top = "-1000px";
+    ta.style.left = "-1000px";
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    const ok = document.execCommand("copy");
+    document.body.removeChild(ta);
+    return ok;
+  } catch {
+    return false;
+  }
+}
+
+type FormatFormationParams = {
+  ownerKey: string;
+  advisorKey: string;
+  selectedAdvisor: string;
+  label: string;
+  slots: Record<SlotPosition, SlotState>;
+  officers: Officer[];
+  skills: Skill[];
+  requestcomment: string;
+  answercomment: string;
+};
+
+function formatFormationForCopy(params: FormatFormationParams): string {
+  const {
+    ownerKey,
+    advisorKey,
+    selectedAdvisor,
+    label,
+    slots,
+    officers,
+    skills,
+    requestcomment,
+    answercomment,
+  } = params;
+
+  const lines: string[] = [];
+  const advisorLabel = selectedAdvisor || advisorKey;
+
+  lines.push(`【${ownerKey || "（相談者未選択）"} さん宛 ${label}】`);
+  if (advisorLabel) {
+    lines.push(`編成者: ${advisorLabel}`);
+  }
+  lines.push("");
+
+  POSITIONS.forEach(({ key, label: posLabel }) => {
+    const slot = slots[key];
+    const hasSomething =
+      slot.officerId !== null ||
+      slot.inherit1Id !== null ||
+      slot.inherit2Id !== null;
+
+    if (!hasSomething) return;
+
+    const officer = officers.find((o) => o.id === slot.officerId);
+    const inheritSkill1 = skills.find((s) => s.id === slot.inherit1Id);
+    const inheritSkill2 = skills.find((s) => s.id === slot.inherit2Id);
+
+    const parts: string[] = [];
+    parts.push(
+      `${posLabel}: ${officer ? officer.name : "（武将未設定）"}`
+    );
+
+    if (officer?.inherent_skill_name) {
+      parts.push(`固有：${officer.inherent_skill_name}`);
+    }
+
+    const inheritNames = [
+      inheritSkill1?.name ?? null,
+      inheritSkill2?.name ?? null,
+    ].filter(Boolean);
+
+    if (inheritNames.length > 0) {
+      parts.push(`伝授：${inheritNames.join(" / ")}`);
+    }
+
+    lines.push(`- ${parts.join(" ｜ ")}`);
+  });
+
+  if (requestcomment) {
+    lines.push("", `依頼者コメント：${requestcomment}`);
+  }
+  if (answercomment) {
+    lines.push("", `回答者コメント：${answercomment}`);
+  }
+
+  return lines.join("\n");
+}
+
+// ===== ここまでコピー機能用ユーティリティ =====
 
 function FormationPageInner() {
   const { userKey, ready, clearUserKey } = useUserKey();
@@ -556,6 +671,32 @@ function FormationPageInner() {
     });
   };
 
+  const handleCopyFormation = async () => {
+    if (!ownerKey) {
+      alert("先に相談者を選択してください");
+      return;
+    }
+
+    const text = formatFormationForCopy({
+      ownerKey,
+      advisorKey,
+      selectedAdvisor,
+      label: currentLabel,
+      slots,
+      officers,
+      skills,
+      requestcomment,
+      answercomment,
+    });
+
+    const ok = await copyToClipboard(text);
+    if (ok) {
+      alert("編成内容をクリップボードにコピーしました");
+    } else {
+      alert("コピーに失敗しました");
+    }
+  };
+
   if (!ready) {
     return <div className="p-4">ユーザー情報を読み込み中...</div>;
   }
@@ -576,7 +717,7 @@ function FormationPageInner() {
     return <div className="p-4">マスタデータ読み込み中...</div>;
   }
 
-  // セレクトに出す戦法：伝承可能かつ「所持 or 伝承者あり」のみ
+  // セレクトに出す戦法：伝授可能かつ「所持 or 伝授者あり」のみ
   const selectableSkills = skills.filter((s) => {
     const hasInherit = !!(s.inherit1_name || s.inherit2_name);
     const usable = s.isOwned || s.isInheritable;
@@ -755,21 +896,36 @@ function FormationPageInner() {
       <p className="text-sm text-gray-600">
         ・相談者が所持している武将だけが選択肢に出ます。
         <br />
-        ・伝承戦法は、「相談者が所持している戦法」＋「相談者が伝承武将を所持している戦法」が選べます。
+        ・伝授戦法は、「相談者が所持している戦法」＋「相談者が伝授武将を所持している戦法」が選べます。
         （固有のみの戦法も「固有戦法」の詳細ボタンから内容を確認できます）
       </p>
 
-      <button
-        onClick={handleSave}
-        disabled={saving || !ownerKey || !isMyAdvisorView}
-        className={`px-4 py-2 rounded ${
-          saving || !ownerKey || !isMyAdvisorView
-            ? "bg-gray-300 text-gray-600"
-            : "bg-blue-500 text-white"
-        }`}
-      >
-        {saving ? "保存中..." : `${currentLabel} を保存`}
-      </button>
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          onClick={handleSave}
+          disabled={saving || !ownerKey || !isMyAdvisorView}
+          className={`px-4 py-2 rounded ${
+            saving || !ownerKey || !isMyAdvisorView
+              ? "bg-gray-300 text-gray-600"
+              : "bg-blue-500 text-white"
+          }`}
+        >
+          {saving ? "保存中..." : `${currentLabel} を保存`}
+        </button>
+
+        <button
+          type="button"
+          onClick={handleCopyFormation}
+          disabled={!ownerKey}
+          className={`px-3 py-2 rounded border text-sm ${
+            !ownerKey
+              ? "bg-gray-300 text-gray-600 border-gray-300"
+              : "bg-white text-gray-700 border-gray-400 hover:bg-gray-50"
+          }`}
+        >
+          編成内容をコピー
+        </button>
+      </div>
 
       {/* 編成スロット */}
       <div className="grid gap-4 md:grid-cols-3 mt-4">
@@ -787,7 +943,7 @@ function FormationPageInner() {
           const renderSkillLabel = (s: Skill) => {
             const flags = [
               s.isOwned ? "所持" : null,
-              s.isInheritable ? "伝承可" : null,
+              s.isInheritable ? "伝授可" : null,
             ]
               .filter(Boolean)
               .join("/");
@@ -843,9 +999,9 @@ function FormationPageInner() {
                 )}
               </div>
 
-              {/* 伝承戦法1 */}
+              {/* 伝授戦法1 */}
               <div>
-                <label className="text-sm block mb-1">伝承戦法1</label>
+                <label className="text-sm block mb-1">伝授戦法1</label>
                 <select
                   className="border rounded w-full px-2 py-1"
                   value={slot.inherit1Id ?? ""}
@@ -874,9 +1030,9 @@ function FormationPageInner() {
                 )}
               </div>
 
-              {/* 伝承戦法2 */}
+              {/* 伝授戦法2 */}
               <div>
-                <label className="text-sm block mb-1">伝承戦法2</label>
+                <label className="text-sm block mb-1">伝授戦法2</label>
                 <select
                   className="border rounded w-full px-2 py-1"
                   value={slot.inherit2Id ?? ""}
@@ -930,7 +1086,7 @@ function FormationPageInner() {
                 状態:{" "}
                 {[
                   detailSkill.isOwned ? "所持" : null,
-                  detailSkill.isInheritable ? "伝承可" : null,
+                  detailSkill.isInheritable ? "伝授可" : null,
                 ]
                   .filter(Boolean)
                   .join(" / ") || "-"}
@@ -939,11 +1095,11 @@ function FormationPageInner() {
 
             <div className="text-sm space-y-2 mb-3">
               <div>
-                <span className="font-semibold">伝承者1:</span>{" "}
+                <span className="font-semibold">伝授者1:</span>{" "}
                 {detailSkill.inherit1_name ?? "-"}
               </div>
               <div>
-                <span className="font-semibold">伝承者2:</span>{" "}
+                <span className="font-semibold">伝授者2:</span>{" "}
                 {detailSkill.inherit2_name ?? "-"}
               </div>
             </div>

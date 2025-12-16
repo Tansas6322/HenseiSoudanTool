@@ -1,0 +1,47 @@
+編成相談ツール サマリー 
+1. アプリ概要
+戦国系ゲーム向けの編成相談ツール。
+相談者（依頼者）が所持武将・戦法を登録し、編成者（回答者）が別ユーザーとして編成案を作成できる。
+ログインは メール不要・ユーザー名のみ（日本語OK）。
+
+2. 技術構成 
+Frontend：Next.js（App Router / TypeScript） 
+Backend / DB：Supabase Hosting：Vercel 
+画像：/public/officers, /public/skills 
+未用意分は no-image.png を表示 
+
+3. ユーザー概念（重要） 
+ユーザー種別（実装上の考え方） 
+役割 説明 
+依頼者 所持武将・戦法を登録する人 
+編成者 依頼者のデータを見て編成を作る人 
+同時にログインするのは1ユーザー 
+編成データには owner_user_key（依頼者） creator_user_key（編成者） を保存する設計
+ 👉 編成者のログイン専用導線は廃止 👉 ユーザー切り替えは常に上部の「現在のユーザー」から行う 
+ 
+ 4. 主な画面構成 
+ ① ホーム 使い方説明 「依頼者向け」「編成を見る」などの導線を明確化 他画面から必ず戻れる 
+ ② 武将登録 枚数を ＋／− ボタンで登録 一括登録／一括解除あり 
+ 検索・フィルター（★・コスト・勢力） ソート（★・コスト） カード選択式（チェックボックスなし） 
+ 武将詳細 固有戦法 伝承戦法 特性 → モバイル対応：タップで表示 
+ ③ 戦法登録 所持戦法は各1つまで 固有戦法は武将依存（別管理） 
+ 表示対象： 伝承のみ 固有＋伝承 固有のみも表示可能に修正済 
+ 詳細表示： 戦法説明（description） 伝承者（inherit1_name / inherit2_name） 
+ 一括選択／解除あり ランク導入（DB管理） ★5 → S ★4 → A ★3 → B 
+ フィルター・ソート：ランクのみ 
+ ④ 編成作成 編成は 複数作成可能 「編成1 ＋」形式 上限あり（5〜10想定） 
+ 編成ごとにコメント 依頼者コメント 回答者コメント 
+ 武将3人（主将・副将1・副将2） 
+ 戦法選択条件： 所持戦法 伝承者を所持していれば未所持戦法も選択可 戦法・武将ともに詳細確認可能 
+ 
+5. DB設計ポイント 
+主テーブル officers skills user_officers user_skills formations formation_slots formations の重要カラム 
+owner_user_key（依頼者） creator_user_key（編成者） request_comment answer_comment 
+戦法関連 inherit1_name が NOT NULL のものを伝承判定 owner_name 依存は廃止 
+
+6. 最近対応した重要修正 useSearchParams を Suspense でラップ /formation/page.tsx FormationPageInner + 外側 <Suspense> Supabase 環境変数 NEXT_PUBLIC_SUPABASE_URL NEXT_PUBLIC_SUPABASE_ANON_KEY 400エラー対策 画像未存在時は no-image.png TypeScript strict エラー解消 PromiseLike<void>.finally エラー修正 
+
+7. 共有・運用 URLを共有するだけで利用可能 Discordで運営メンバーに先行公開済 DB管理は SupabaseのProjectメンバー招待で共同編集可能 Vercel無料版は1人制限 → 本格共同開発は GitHub + Vercel連携 or セルフホスト（Railway / Fly.io 等） 
+
+
+8. 今後の改善余地（メモ） 編成一覧画面（依頼者視点で「誰が作った編成か」を明示） コメント履歴の時系列化 編成URLの共有機能 お気に入り編成 画像拡大表示
