@@ -31,6 +31,8 @@ type UserOfficer = {
 type SkillSummary = {
   name: string;
   description: string | null;
+  trigger_rate: number | null;
+  category: string | null;
 };
 
 export default function MyOfficersPage() {
@@ -181,7 +183,7 @@ export default function MyOfficersPage() {
 
     const { data, error } = await supabase
       .from("skills")
-      .select("name, description")
+      .select("name, description, trigger_rate, category")
       .in("name", names);
 
     if (error) {
@@ -320,6 +322,18 @@ export default function MyOfficersPage() {
     if (!name) return null;
     const skill = detailSkills[name];
     return skill?.description ?? null;
+  };
+
+  const getSkillTriggerRate = (name: string | null) => {
+    if (!name) return null;
+    const skill = detailSkills[name];
+    return skill?.trigger_rate ?? null;
+  };
+
+  const getSkillCategory = (name: string | null) => {
+    if (!name) return null;
+    const skill = detailSkills[name];
+    return skill?.category ?? null;
   };
 
   return (
@@ -574,12 +588,31 @@ export default function MyOfficersPage() {
             )}
 
             <div className="text-sm space-y-3">
+              {/* 固有戦法：固有戦法名（発動率：xx%）（種別） */}
               <div>
                 <div>
                   <span className="font-semibold">固有戦法:</span>{" "}
-                  {detailOfficer.inherent_skill_name ?? "-"}{" "}
-                  {detailOfficer.inherent_skill_type &&
-                    `（${detailOfficer.inherent_skill_type}）`}
+                  {detailOfficer.inherent_skill_name ? (
+                    <>
+                      {detailOfficer.inherent_skill_name}{" "}
+                      （発動率：
+                      {(() => {
+                        const rate = getSkillTriggerRate(
+                          detailOfficer.inherent_skill_name
+                        );
+                        return rate != null ? `${rate}%` : "-";
+                      })()}
+                      ） （
+                      {detailOfficer.inherent_skill_type ??
+                        getSkillCategory(
+                          detailOfficer.inherent_skill_name
+                        ) ??
+                        "-"}
+                      ）
+                    </>
+                  ) : (
+                    "-"
+                  )}
                 </div>
                 {detailOfficer.inherent_skill_name && (
                   <p className="mt-1 text-xs text-gray-700 dark:text-gray-200 whitespace-pre-wrap">
@@ -589,10 +622,27 @@ export default function MyOfficersPage() {
                 )}
               </div>
 
+              {/* 伝授戦法：伝授戦法名（発動率：xx%）（種別） */}
               <div>
                 <div>
                   <span className="font-semibold">伝授戦法:</span>{" "}
-                  {detailOfficer.inherit_skill_name ?? "-"}
+                  {detailOfficer.inherit_skill_name ? (
+                    <>
+                      {detailOfficer.inherit_skill_name} （発動率：
+                      {(() => {
+                        const rate = getSkillTriggerRate(
+                          detailOfficer.inherit_skill_name
+                        );
+                        return rate != null ? `${rate}%` : "-";
+                      })()}
+                      ） （
+                      {getSkillCategory(detailOfficer.inherit_skill_name) ??
+                        "-"}
+                      ）
+                    </>
+                  ) : (
+                    "-"
+                  )}
                 </div>
                 {detailOfficer.inherit_skill_name && (
                   <p className="mt-1 text-xs text-gray-700 dark:text-gray-200 whitespace-pre-wrap">
