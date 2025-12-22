@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense } from "react"; 
+import { Suspense } from "react";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
@@ -195,7 +195,7 @@ function FormationPageInner() {
   const isMyAdvisorView =
     !!advisorKey && !!selectedAdvisor && advisorKey === selectedAdvisor;
 
-  // 相談者一覧を取得（user_officers に登場した user_key）
+  // 相談者一覧を取得（VIEW app_users 経由）
   useEffect(() => {
     if (!ready) return;
     if (!advisorKey) {
@@ -206,20 +206,33 @@ function FormationPageInner() {
     const fetchOwners = async () => {
       setLoading(true);
 
-      const { data: ownerRows, error } = await supabase
-        .from("user_officers")
-        .select("user_key")
-        .not("user_key", "is", null);
+      const nameSet = new Set<string>();
 
-      if (error) {
-        alert("相談者一覧取得エラー: " + error.message);
-        setLoading(false);
-        return;
+      try {
+        const { data, error } = await supabase
+          .from("app_users")
+          .select("name")
+          .range(0, 9999);
+
+        if (error) {
+          alert("相談者一覧取得エラー: " + error.message);
+          setLoading(false);
+          return;
+        }
+
+        (data || []).forEach((row: any) => {
+          if (typeof row.name !== "string") return;
+          const normalized = row.name.trim();
+          if (!normalized) return;
+          nameSet.add(normalized);
+        });
+      } catch (err) {
+        console.error("相談者一覧取得エラー:", err);
       }
 
-      const owners = Array.from(
-        new Set((ownerRows || []).map((r: any) => r.user_key as string))
-      ).sort((a, b) => a.localeCompare(b, "ja"));
+      const owners = Array.from(nameSet).sort((a, b) =>
+        a.localeCompare(b, "ja")
+      );
 
       setOwnerList(owners);
 
@@ -961,9 +974,7 @@ function FormationPageInner() {
                 <select
                   className="border rounded w-full px-2 py-1"
                   value={slot.officerId ?? ""}
-                  onChange={(e) =>
-                    handleChangeOfficer(key, e.target.value)
-                  }
+                  onChange={(e) => handleChangeOfficer(key, e.target.value)}
                   disabled={!isMyAdvisorView}
                 >
                   <option value="">-- 未選択 --</option>
