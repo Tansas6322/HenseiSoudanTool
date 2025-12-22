@@ -8,7 +8,7 @@ export default function LoginPage() {
   const { userKey, setUserKey, clearUserKey } = useUserKey();
   const [name, setName] = useState(userKey ?? "");
 
-  // 登録済みユーザー一覧
+  // 登録済みユーザー一覧（VIEW: app_users から取得）
   const [existingUsers, setExistingUsers] = useState<string[]>([]);
   const [usersLoading, setUsersLoading] = useState(false);
 
@@ -33,45 +33,31 @@ export default function LoginPage() {
     window.location.href = "/";
   };
 
-  // Supabase から登録済みユーザー名を取得
+  // Supabase の VIEW(app_users) から登録済みユーザー名を取得
   useEffect(() => {
     const fetchUsers = async () => {
       setUsersLoading(true);
 
       const nameSet = new Set<string>();
 
+      // 文字列を正規化して Set に積むヘルパー
+      const addName = (raw: unknown) => {
+        if (typeof raw !== "string") return;
+        const normalized = raw.trim(); // 末尾スペース等を除去
+        if (!normalized) return;
+        nameSet.add(normalized);
+      };
+
       try {
-        // formations.user_key
-        const { data: formations, error: fError } = await supabase
-          .from("formations")
-          .select("user_key");
+        const { data, error } = await supabase
+          .from("app_users") // ★ VIEW を参照
+          .select("name")
+          .range(0, 9999); // distinctユーザー数なら1万行もあれば十分
 
-        if (!fError && formations) {
-          formations.forEach((row: any) => {
-            if (row.user_key) nameSet.add(row.user_key as string);
-          });
-        }
-
-        // user_officers.user_key
-        const { data: officers, error: oError } = await supabase
-          .from("user_officers")
-          .select("user_key");
-
-        if (!oError && officers) {
-          officers.forEach((row: any) => {
-            if (row.user_key) nameSet.add(row.user_key as string);
-          });
-        }
-
-        // user_skills.user_id
-        const { data: skills, error: sError } = await supabase
-          .from("user_skills")
-          .select("user_id");
-
-        if (!sError && skills) {
-          skills.forEach((row: any) => {
-            if (row.user_id) nameSet.add(row.user_id as string);
-          });
+        if (error) {
+          console.error("app_users取得エラー:", error);
+        } else if (data) {
+          (data as any[]).forEach((row) => addName(row.name));
         }
       } catch (err) {
         console.error("ユーザー一覧取得エラー:", err);
